@@ -4,23 +4,23 @@ Sistema avançado para controle de notas fiscais, empenhos e análise financeira
 
 ## 🚀 Como Rodar com Docker
 
-A infraestrutura foi movida para o diretório `docker/` para melhor organização.
+A infraestrutura agora está organizada no diretório `docker/`.
 
-1.  **Configuração**: Crie um arquivo `.env` na raiz do projeto:
+1.  **Configuração**: Crie um arquivo `.env` na **raiz do projeto** (mesmo nível da `package.json`):
     ```bash
     API_KEY=sua_chave_gemini_aqui
     ```
 
 2.  **Execução**:
-    A partir da **raiz do projeto**, execute:
+    Abra o terminal na **raiz do projeto** e execute:
     ```bash
     docker-compose -f docker/docker-compose.yml up --build -d
     ```
 
 3.  **Acesso**:
-    Navegue para `http://localhost:3000`
+    Navegue para `http://localhost:3000` no seu navegador.
 
-## 🛠️ Detalhes
-- O build é otimizado em dois estágios.
-- A aplicação é servida via `serve` (Node.js).
-- Porta padrão: 3000.
+## 🛠️ Detalhes da Imagem
+- **Build**: Multi-stage (Node 20).
+- **Servidor**: `serve` (Node.js Static Server).
+- **Porta**: 3000.

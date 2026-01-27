@@ -5,3 +5,5 @@ dist
 docker/
 .dockerignore
 README.md
+docker-compose.yml
+.gitignore

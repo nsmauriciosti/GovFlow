@@ -1,2 +1,0 @@
-# MIGRADO PARA docker/docker-compose.yml
-# Execute: docker-compose -f docker/docker-compose.yml up --build -d
