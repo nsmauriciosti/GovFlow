@@ -1,20 +1,44 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
 
-# Run and deploy your AI Studio app
+# 🏛️ GovFlow Pro - Gestão de Finanças Públicas
 
-This contains everything you need to run your app locally.
+Sistema avançado para controle de notas fiscais, empenhos e análise financeira com IA.
 
-View your app in AI Studio: https://ai.studio/apps/drive/1egK2W3pEdiR3QTvgi1TsL7PGMx4JDtPl
+## 🚀 Como Rodar com Docker (Modo App Server)
 
-## Run Locally
+Este container roda apenas a aplicação. Você deve usar seu **Nginx local** para servir o tráfego externo.
 
-**Prerequisites:**  Node.js
+1.  **Configuração**: Crie um arquivo `.env` na raiz:
+    ```bash
+    API_KEY=sua_chave_gemini_aqui
+    ```
+2.  **Execução**:
+    ```bash
+    docker-compose up --build -d
+    ```
+3.  A aplicação estará disponível internamente em: `http://localhost:3000`
 
+## 🛡️ Configuração do seu Nginx Local
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Adicione um bloco de servidor no seu Nginx para encaminhar o tráfego:
+
+```nginx
+server {
+    listen 80;
+    server_name govflow.seu-dominio.com;
+
+    location / {
+        proxy_pass http://localhost:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
+        proxy_set_header Host $host;
+        proxy_cache_bypass $http_upgrade;
+    }
+}
+```
+
+## 🛠️ Tecnologias
+- **Frontend**: React 19 + TypeScript
+- **IA**: Google Gemini API
+- **Container**: Docker (Node.js 20)
+- **Proxy**: Nginx Local (Externo)

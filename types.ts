@@ -14,10 +14,26 @@ export interface User {
   id: string;
   name: string;
   email: string;
-  password?: string; // Campo opcional na interface mas obrigatório na criação
+  password?: string;
   role: UserRole;
   status: 'Ativo' | 'Inativo';
   lastLogin: string;
+}
+
+export interface HistoryEntry {
+  id: string;
+  date: string;
+  description: string;
+  user: string;
+}
+
+export interface ImportErrorLog {
+  id: string;
+  date: string;
+  fileName: string;
+  errorType: 'FORMATO_INVALIDO' | 'FALHA_IA' | 'SISTEMA' | 'DADOS_INCOMPLETOS';
+  details: string;
+  userEmail: string;
 }
 
 export interface Invoice {
@@ -27,9 +43,10 @@ export interface Invoice {
   ne: string;
   nf: string;
   valor: number;
-  vcto: string; // ISO date string or YYYY-MM-DD
-  pgto: string | null; // ISO date string or YYYY-MM-DD
+  vcto: string; 
+  pgto: string | null; 
   situacao: Situacao;
+  history?: HistoryEntry[];
 }
 
 export interface DashboardStats {
@@ -43,5 +60,6 @@ export interface Filters {
   secretaria: string;
   fornecedor: string;
   situacao: string;
-  mesVcto: string;
+  startDate: string;
+  endDate: string;
 }

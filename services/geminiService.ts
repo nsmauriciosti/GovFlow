@@ -7,9 +7,21 @@ const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 export const parseBulkData = async (rawText: string): Promise<Partial<Invoice>[]> => {
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
-    contents: `Transforme o seguinte texto/tabela colada em um array JSON seguindo a estrutura de campos: SECRETARIA, FORNECEDOR, NE, NF, VALOR (numérico), VCTO (formato YYYY-MM-DD), PGTO (formato YYYY-MM-DD ou null), SITUAÇÃO (PAGO ou NÃO PAGO). 
+    contents: `Você é um Analista de Dados Governamentais especializado em Notas Fiscais. 
+    Abaixo está um conteúdo que pode ser um texto colado, um CSV de planilha ou o conteúdo bruto de um XML de NFe (Nota Fiscal Eletrônica).
     
-    Texto:
+    INSTRUÇÕES:
+    1. Extraia os dados para um array JSON estruturado.
+    2. No caso de XML NFe:
+       - <xNome> do <emit> é o FORNECEDOR.
+       - <xNome> do <dest> é a SECRETARIA (ou destinatário).
+       - <nNF> é a NF.
+       - <vNF> é o VALOR.
+       - <dhEmi> é a data base (VCTO).
+    3. Formatos: VALOR deve ser numérico, VCTO e PGTO em YYYY-MM-DD.
+    4. SITUAÇÃO deve ser PAGO ou NÃO PAGO.
+    
+    CONTEÚDO PARA ANÁLISE:
     ${rawText}`,
     config: {
       responseMimeType: "application/json",
@@ -26,7 +38,8 @@ export const parseBulkData = async (rawText: string): Promise<Partial<Invoice>[]
             vcto: { type: Type.STRING },
             pgto: { type: Type.STRING, nullable: true },
             situacao: { type: Type.STRING }
-          }
+          },
+          required: ["secretaria", "fornecedor", "valor"]
         }
       }
     }

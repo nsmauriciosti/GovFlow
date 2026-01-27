@@ -39,9 +39,14 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, error, isLoading }) => {
 
             <form onSubmit={handleSubmit} className="space-y-6">
               {error && (
-                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-3 rounded-2xl text-xs font-bold flex items-center gap-3 animate-shake">
-                  <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                  {error}
+                <div className="bg-rose-500/10 border border-rose-500/20 text-rose-400 px-4 py-3 rounded-2xl text-xs font-bold flex flex-col gap-2 animate-shake">
+                  <div className="flex items-center gap-3">
+                    <svg className="w-5 h-5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    {error}
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-normal mt-1 bg-black/20 p-2 rounded-lg">
+                    Dica: Use <strong>admin@gov.br</strong> e <strong>admin123</strong>. Se o erro persistir, o sistema pode estar sincronizando as tabelas do Supabase pela primeira vez.
+                  </div>
                 </div>
               )}
 
@@ -71,18 +76,10 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, error, isLoading }) => {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between px-1">
-                <label className="flex items-center gap-2 cursor-pointer group">
-                  <input type="checkbox" className="w-4 h-4 rounded border-white/10 bg-white/5 text-indigo-600 focus:ring-0" />
-                  <span className="text-xs text-slate-400 font-medium group-hover:text-slate-300 transition-colors">Lembrar acesso</span>
-                </label>
-                <button type="button" className="text-xs text-indigo-400 font-bold hover:text-indigo-300 transition-colors">Esqueceu a senha?</button>
-              </div>
-
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/50 text-white font-black text-sm rounded-2xl transition-all shadow-xl shadow-indigo-600/20 flex items-center justify-center gap-3 active:scale-[0.98]"
+                className={`w-full py-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/50 text-white font-black text-sm rounded-2xl transition-all shadow-xl flex items-center justify-center gap-3 active:scale-[0.98] ${!isLoading ? 'animate-pulse-subtle' : ''}`}
               >
                 {isLoading ? (
                   <div className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></div>
@@ -98,8 +95,8 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, error, isLoading }) => {
           
           <div className="bg-white/[0.02] border-t border-white/5 p-6 text-center">
             <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
-              Sistema restrito para servidores autorizados.<br/>
-              O acesso indevido é passível de sanções administrativas e legais.
+              Administrador: admin@gov.br | admin123 <br/>
+              Sistema restrito para servidores autorizados.
             </p>
           </div>
         </div>
@@ -111,7 +108,15 @@ const LoginView: React.FC<LoginViewProps> = ({ onLogin, error, isLoading }) => {
           25% { transform: translateX(-4px); }
           75% { transform: translateX(4px); }
         }
+        
+        @keyframes pulse-glow {
+          0% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); transform: scale(1); }
+          50% { box-shadow: 0 0 20px 5px rgba(79, 70, 229, 0.2); transform: scale(1.01); }
+          100% { box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.4); transform: scale(1); }
+        }
+
         .animate-shake { animation: shake 0.2s ease-in-out 0s 2; }
+        .animate-pulse-subtle { animation: pulse-glow 3s ease-in-out infinite; }
       `}</style>
     </div>
   );

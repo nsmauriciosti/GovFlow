@@ -2,14 +2,16 @@
 import React, { useState, useEffect } from 'react';
 import { User, UserRole } from '../types';
 import { generateId } from '../utils';
+import { ToastType } from './Toast';
 
 interface UserModalProps {
   user?: User | null;
   onClose: () => void;
   onSave: (user: User) => void;
+  onToast: (msg: string, type: ToastType) => void;
 }
 
-const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
+const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, onToast }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -32,7 +34,6 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
   }, [user]);
 
   const validatePassword = (pass: string) => {
-    // Mínimo 8 caracteres, pelo menos uma maiúscula, uma minúscula e um número
     const regex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d).{8,}$/;
     return regex.test(pass);
   };
@@ -42,15 +43,15 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
     
     if (!user) {
       if (!formData.password) {
-        alert("A senha é obrigatória para novos usuários.");
+        onToast("A senha é obrigatória para novos usuários.", "warning");
         return;
       }
       if (!validatePassword(formData.password)) {
-        alert("A senha deve ter pelo menos 8 caracteres, incluindo uma letra maiúscula, uma letra minúscula e um número.");
+        onToast("Senha fraca: use 8+ caracteres com letras (A/a) e números.", "warning");
         return;
       }
     } else if (formData.password && !validatePassword(formData.password)) {
-      alert("A nova senha deve ter pelo menos 8 caracteres, incluindo uma letra maiúscula, uma letra minúscula e um número.");
+      onToast("Nova senha deve ter 8+ caracteres com letras (A/a) e números.", "warning");
       return;
     }
 
@@ -120,9 +121,6 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave }) => {
                   )}
                 </button>
               </div>
-              <p className="text-[10px] text-slate-400 mt-1.5 ml-1 leading-tight">
-                Requisitos: Mínimo 8 caracteres, 1 maiúscula, 1 minúscula e 1 número.
-              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
