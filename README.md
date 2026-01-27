@@ -4,7 +4,7 @@ Sistema avançado para controle de notas fiscais, empenhos e análise financeira
 
 ## 🚀 Como Rodar com Docker
 
-A infraestrutura está centralizada na pasta `docker/`. Para rodar o sistema corretamente, siga estes passos da **raiz do projeto**:
+A infraestrutura foi movida para o diretório `docker/` para melhor organização.
 
 1.  **Configuração**: Crie um arquivo `.env` na raiz do projeto:
     ```bash
@@ -12,15 +12,15 @@ A infraestrutura está centralizada na pasta `docker/`. Para rodar o sistema cor
     ```
 
 2.  **Execução**:
-    Execute o comando abaixo na raiz do projeto (onde está o seu `package.json`):
+    A partir da **raiz do projeto**, execute:
     ```bash
     docker-compose -f docker/docker-compose.yml up --build -d
     ```
 
 3.  **Acesso**:
-    A aplicação estará disponível em: `http://localhost:3000`
+    Navegue para `http://localhost:3000`
 
-## 🛠️ Detalhes do Ambiente
-- **Build**: Multi-stage (Node 20 -> Dist)
-- **Servidor**: Static serve (Production-ready)
-- **Porta**: 3000 (Mapeada no docker-compose)
+## 🛠️ Detalhes
+- O build é otimizado em dois estágios.
+- A aplicação é servida via `serve` (Node.js).
+- Porta padrão: 3000.

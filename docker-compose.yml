@@ -1,15 +1,2 @@
-
-version: '3.8'
-
-services:
-  govflow-app:
-    build: 
-      context: .
-      args:
-        - API_KEY=${API_KEY}
-    container_name: govflow_pro_app
-    ports:
-      - "3000:3000"
-    environment:
-      - API_KEY=${API_KEY}
-    restart: always
+# MIGRADO PARA docker/docker-compose.yml
+# Execute: docker-compose -f docker/docker-compose.yml up --build -d
