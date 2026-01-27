@@ -1,21 +1,21 @@
-
 # 🏛️ GovFlow Pro - Gestão de Finanças Públicas
 
 Sistema avançado para controle de notas fiscais, empenhos e análise financeira com IA.
 
-## 🚀 Como Rodar com Docker (Modo App Server)
+## 🚀 Como Rodar com Docker (Configurações em /docker)
 
-Este container roda apenas a aplicação. Você deve usar seu **Nginx local** para servir o tráfego externo.
+A infraestrutura foi movida para a pasta `docker/` para manter a raiz do projeto limpa.
 
-1.  **Configuração**: Crie um arquivo `.env` na raiz:
+1.  **Configuração**: Crie um arquivo `.env` na raiz do projeto:
     ```bash
     API_KEY=sua_chave_gemini_aqui
     ```
 2.  **Execução**:
+    Para subir o container, você deve especificar o caminho do arquivo de configuração:
     ```bash
-    docker-compose up --build -d
+    docker-compose -f docker/docker-compose.yml up --build -d
     ```
-3.  A aplicação estará disponível internamente em: `http://localhost:3000`
+3.  A aplicação estará disponível em: `http://localhost:3000`
 
 ## 🛡️ Configuração do seu Nginx Local
 
