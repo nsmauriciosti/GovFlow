@@ -2,7 +2,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Invoice, Situacao } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// A chave é injetada via Vite 'define'
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
 export const parseBulkData = async (rawText: string): Promise<Partial<Invoice>[]> => {
   const response = await ai.models.generateContent({
