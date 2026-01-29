@@ -57,12 +57,12 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, currentUser,
   const lastName = rest.join(' ');
 
   return (
-    <aside className="w-72 bg-slate-950 text-slate-300 flex flex-col h-screen sticky top-0 no-print shrink-0 border-r border-slate-800/30">
-      <div className="p-8 flex items-center gap-3 border-b border-slate-800/50 mb-4">
+    <aside className="w-72 bg-white dark:bg-slate-950 text-slate-600 dark:text-slate-300 flex flex-col h-screen sticky top-0 no-print shrink-0 border-r border-slate-200 dark:border-slate-800/30 transition-colors duration-300">
+      <div className="p-8 flex items-center gap-3 border-b border-slate-100 dark:border-slate-800/50 mb-4 transition-colors">
         <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-500/20">
           <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" /><path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9z" clipRule="evenodd" /></svg>
         </div>
-        <span className="font-black text-white tracking-tight text-xl uppercase">
+        <span className="font-black text-slate-900 dark:text-white tracking-tight text-xl uppercase transition-colors">
           {firstName} <span className="text-indigo-500">{lastName}</span>
         </span>
       </div>
@@ -72,19 +72,21 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, currentUser,
           <button
             key={item.id} onClick={() => onNavigate(item.id as ViewType)}
             className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-bold transition-all duration-200 group ${
-              currentView === item.id ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20' : 'hover:bg-slate-900 hover:text-white'
+              currentView === item.id 
+                ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20' 
+                : 'hover:bg-slate-100 dark:hover:bg-slate-900 hover:text-slate-900 dark:hover:text-white'
             }`}
           >
-            <span className={`${currentView === item.id ? 'text-white' : 'text-slate-500 group-hover:text-indigo-400'}`}>{item.icon}</span>
+            <span className={`${currentView === item.id ? 'text-white' : 'text-slate-400 group-hover:text-indigo-500 transition-colors'}`}>{item.icon}</span>
             {item.label}
           </button>
         ))}
       </nav>
 
-      <div className="px-6 py-4 border-t border-slate-800/50">
+      <div className="px-6 py-4 border-t border-slate-100 dark:border-slate-800/50 transition-colors">
         <button 
           onClick={onToggleTheme}
-          className="w-full flex items-center justify-between px-4 py-3 bg-slate-900/50 hover:bg-slate-900 rounded-2xl border border-slate-800/30 transition-all text-xs font-bold text-slate-400 group"
+          className="w-full flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-slate-900/50 hover:bg-slate-100 dark:hover:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800/30 transition-all text-xs font-bold text-slate-500 dark:text-slate-400 group"
         >
           <div className="flex items-center gap-2">
             {theme === 'light' ? (
@@ -92,19 +94,19 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, currentUser,
             ) : (
               <svg className="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" /></svg>
             )}
-            <span className="group-hover:text-white transition-colors">Modo {theme === 'light' ? 'Claro' : 'Escuro'}</span>
+            <span className="group-hover:text-slate-900 dark:group-hover:text-white transition-colors">Modo {theme === 'light' ? 'Claro' : 'Escuro'}</span>
           </div>
-          <div className={`w-8 h-4 rounded-full p-0.5 flex items-center transition-colors ${theme === 'light' ? 'bg-slate-700' : 'bg-indigo-600'}`}>
+          <div className={`w-8 h-4 rounded-full p-0.5 flex items-center transition-colors ${theme === 'light' ? 'bg-slate-300' : 'bg-indigo-600'}`}>
             <div className={`w-3 h-3 bg-white rounded-full transition-transform duration-300 ${theme === 'light' ? 'translate-x-0' : 'translate-x-4'}`}></div>
           </div>
         </button>
       </div>
 
-      <div className="p-4 border-t border-slate-800/50 relative" ref={profileRef}>
+      <div className="p-4 border-t border-slate-100 dark:border-slate-800/50 relative transition-colors" ref={profileRef}>
         {isProfileOpen && (
-          <div className="absolute bottom-full left-4 right-4 mb-2 bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-50">
-            <div className="p-4 border-b border-slate-800 bg-slate-900/50">
-              <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Sessão Ativa</p>
+          <div className="absolute bottom-full left-4 right-4 mb-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-50">
+            <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Sessão Ativa</p>
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-indigo-500 overflow-hidden shadow-inner flex items-center justify-center">
                    {currentUser.avatar ? (
@@ -114,17 +116,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, currentUser,
                    )}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-bold text-white truncate">{currentUser.name}</p>
-                  <p className="text-xs text-slate-400 truncate">{currentUser.email}</p>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{currentUser.name}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{currentUser.email}</p>
                 </div>
               </div>
             </div>
             <div className="p-2 space-y-1">
-              <button onClick={() => { onNavigate('profile'); setIsProfileOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">
+              <button onClick={() => { onNavigate('profile'); setIsProfileOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
                 Ver Perfil
               </button>
-              <button onClick={onLogout} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors">
+              <button onClick={onLogout} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-500/10 rounded-lg transition-colors">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3 3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
                 Encerrar Sessão
               </button>
@@ -133,7 +135,7 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, currentUser,
         )}
         <button 
           onClick={() => setIsProfileOpen(!isProfileOpen)}
-          className={`w-full bg-slate-900/50 rounded-2xl p-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-900 border border-transparent transition-all group ${isProfileOpen ? 'bg-slate-900 border-slate-800' : ''}`}
+          className={`w-full bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900 border border-slate-200 dark:border-transparent transition-all group ${isProfileOpen ? 'bg-slate-100 dark:bg-slate-900 border-indigo-200 dark:border-slate-800' : ''}`}
         >
           <div className="flex items-center gap-3 min-w-0">
             <div className="w-8 h-8 rounded-lg bg-indigo-500 overflow-hidden flex items-center justify-center shrink-0">
@@ -144,17 +146,17 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, currentUser,
               )}
             </div>
             <div className="min-w-0 text-left">
-              <p className="text-xs font-bold text-white truncate">{currentUser.name}</p>
-              <p className="text-[10px] text-slate-500 truncate capitalize">{currentUser.role}</p>
+              <p className="text-xs font-bold text-slate-900 dark:text-white truncate transition-colors">{currentUser.name}</p>
+              <p className="text-[10px] text-slate-500 dark:text-slate-500 truncate capitalize">{currentUser.role}</p>
             </div>
           </div>
-          <svg className={`w-4 h-4 text-slate-600 transition-transform duration-300 ${isProfileOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" /></svg>
+          <svg className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isProfileOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" /></svg>
         </button>
       </div>
       <style>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: ${theme === 'dark' ? '#334155' : '#cbd5e1'}; border-radius: 10px; }
       `}</style>
     </aside>
   );
