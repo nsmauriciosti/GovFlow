@@ -29,10 +29,12 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     onSave(localSettings);
+    // Pequeno delay para recarregar a página e re-instanciar o cliente Supabase com as novas chaves
+    setTimeout(() => window.location.reload(), 1500);
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto">
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto pb-20">
       <div className="mb-8">
         <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Configurações Globais</h2>
         <p className="text-slate-500 text-sm mt-1">Personalize a identidade visual e informações básicas da plataforma.</p>
@@ -108,6 +110,39 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) => {
 
             <div className="h-px bg-slate-100"></div>
 
+            {/* Seção Banco de Dados (Supabase) */}
+            <section>
+              <h3 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-6 flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full bg-indigo-500"></div>
+                Integração Supabase (Persistência em Nuvem)
+              </h3>
+              <div className="grid grid-cols-1 gap-6">
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Supabase URL</label>
+                  <input 
+                    type="text"
+                    value={getValue('supabase_url')}
+                    onChange={(e) => updateSetting('supabase_url', e.target.value)}
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-slate-900 font-mono text-xs transition-all"
+                    placeholder="https://xxxxx.supabase.co"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest ml-1">Supabase Anon Key</label>
+                  <input 
+                    type="password"
+                    value={getValue('supabase_key')}
+                    onChange={(e) => updateSetting('supabase_key', e.target.value)}
+                    className="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-slate-900 font-mono text-xs transition-all"
+                    placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  />
+                  <p className="text-[10px] text-amber-600 mt-2 font-bold italic">⚠️ Nota: Alterar estas chaves reiniciará a conexão com o banco. Se o link for inválido (404), o sistema usará o armazenamento local.</p>
+                </div>
+              </div>
+            </section>
+
+            <div className="h-px bg-slate-100"></div>
+
             {/* Seção Rodapé */}
             <section>
               <h3 className="text-xs font-black text-indigo-600 uppercase tracking-widest mb-6 flex items-center gap-2">
@@ -131,7 +166,7 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave }) => {
               type="submit"
               className="bg-indigo-600 hover:bg-indigo-700 text-white px-10 py-4 rounded-2xl font-black text-sm transition-all shadow-xl shadow-indigo-600/20 active:scale-95"
             >
-              Salvar Alterações
+              Salvar Alterações e Reiniciar Conexão
             </button>
           </div>
         </div>

@@ -1,5 +1,5 @@
 
-import { supabase, isSupabaseConfigured } from './supabase';
+import { getSupabaseClient } from './supabase';
 import { Invoice, User, UserRole, Situacao, ImportErrorLog, SystemSetting } from '../types';
 import { generateId } from '../utils';
 
@@ -24,7 +24,9 @@ const DEFAULT_SETTINGS: SystemSetting[] = [
   { key: 'system_name', value: 'GovFlow Pro' },
   { key: 'system_slogan', value: 'Portal de Gestão de Finanças Públicas' },
   { key: 'favicon_url', value: '' },
-  { key: 'footer_text', value: 'Sistema restrito para servidores autorizados.' }
+  { key: 'footer_text', value: 'Sistema restrito para servidores autorizados.' },
+  { key: 'supabase_url', value: 'https://qiafgsigctmizdrgrdls.supabase.co' },
+  { key: 'supabase_key', value: 'sb_publishable_PUkC5A7ZPTKRhqRQsPEddA_1UQ26Jt8' }
 ];
 
 const localDb = {
@@ -67,26 +69,29 @@ const localDb = {
 export const dataService = {
   async seedDatabase(): Promise<void> {
     localDb.getUsers();
-    if (!isSupabaseConfigured || !supabase) return;
+    const sb = getSupabaseClient();
+    if (!sb) return;
     try {
-      // Seed Admin
-      const { data: adminExists } = await supabase.from('users').select('id').eq('email', DEFAULT_ADMIN.email).maybeSingle();
-      if (!adminExists) await supabase.from('users').insert(DEFAULT_ADMIN);
+      const { data: adminExists, error } = await sb.from('users').select('id').eq('email', DEFAULT_ADMIN.email).maybeSingle();
+      if (error) throw error;
+      if (!adminExists) await sb.from('users').insert(DEFAULT_ADMIN);
       
-      // Seed Default Settings if table exists
-      const { data: settingsExist } = await supabase.from('system_settings').select('key').limit(1);
+      const { data: settingsExist } = await sb.from('system_settings').select('key').limit(1);
       if (!settingsExist || settingsExist.length === 0) {
         for (const s of DEFAULT_SETTINGS) {
-          await supabase.from('system_settings').upsert(s);
+          await sb.from('system_settings').upsert(s);
         }
       }
-    } catch (err) {}
+    } catch (err) {
+      console.warn("Supabase Offline ou Erro de Conexão (404/Network). Usando LocalDB.");
+    }
   },
 
   async getInvoices(): Promise<Invoice[]> {
-    if (isSupabaseConfigured && supabase) {
+    const sb = getSupabaseClient();
+    if (sb) {
       try {
-        const { data, error } = await supabase.from('invoices').select('*').order('vcto', { ascending: true });
+        const { data, error } = await sb.from('invoices').select('*').order('vcto', { ascending: true });
         if (error) throw error;
         return (data || []).map(inv => ({ ...inv, history: typeof inv.history === 'string' ? JSON.parse(inv.history) : inv.history })) as Invoice[];
       } catch (err) { return localDb.getInvoices(); }
@@ -99,26 +104,30 @@ export const dataService = {
     const idx = currentLocal.findIndex(i => i.id === invoice.id);
     if (idx >= 0) currentLocal[idx] = invoice; else currentLocal.unshift(invoice);
     localDb.saveInvoices(currentLocal);
-    if (isSupabaseConfigured && supabase) {
+    
+    const sb = getSupabaseClient();
+    if (sb) {
       try {
         const payload = { ...invoice, history: JSON.stringify(invoice.history || []) };
-        await supabase.from('invoices').upsert(payload);
+        await sb.from('invoices').upsert(payload);
       } catch (err) {}
     }
   },
 
   async deleteInvoice(id: string): Promise<void> {
     localDb.saveInvoices(localDb.getInvoices().filter(i => i.id !== id));
-    if (isSupabaseConfigured && supabase) {
-      try { await supabase.from('invoices').delete().eq('id', id); } catch (err) {}
+    const sb = getSupabaseClient();
+    if (sb) {
+      try { await sb.from('invoices').delete().eq('id', id); } catch (err) {}
     }
   },
 
   async getUsers(): Promise<User[]> {
     const localUsers = localDb.getUsers();
-    if (isSupabaseConfigured && supabase) {
+    const sb = getSupabaseClient();
+    if (sb) {
       try {
-        const { data, error } = await supabase.from('users').select('*');
+        const { data, error } = await sb.from('users').select('*');
         if (error) throw error;
         return (data || []).map(u => ({ ...u, lastLogin: u.last_login })) as User[];
       } catch (err) { return localUsers; }
@@ -131,25 +140,29 @@ export const dataService = {
     const idx = currentLocal.findIndex(u => u.id === user.id);
     if (idx >= 0) currentLocal[idx] = user; else currentLocal.push(user);
     localDb.saveUsers(currentLocal);
-    if (isSupabaseConfigured && supabase) {
+    
+    const sb = getSupabaseClient();
+    if (sb) {
       try {
         const dbUser = { id: user.id, name: user.name, email: user.email, password: user.password, role: user.role, status: user.status, last_login: user.lastLogin };
-        await supabase.from('users').upsert(dbUser);
+        await sb.from('users').upsert(dbUser);
       } catch (err) {}
     }
   },
 
   async deleteUser(id: string): Promise<void> {
     localDb.saveUsers(localDb.getUsers().filter(u => u.id !== id));
-    if (isSupabaseConfigured && supabase) {
-      try { await supabase.from('users').delete().eq('id', id); } catch (err) {}
+    const sb = getSupabaseClient();
+    if (sb) {
+      try { await sb.from('users').delete().eq('id', id); } catch (err) {}
     }
   },
 
   async getErrorLogs(): Promise<ImportErrorLog[]> {
-    if (isSupabaseConfigured && supabase) {
+    const sb = getSupabaseClient();
+    if (sb) {
       try {
-        const { data, error } = await supabase.from('import_errors').select('*').order('date', { ascending: false });
+        const { data, error } = await sb.from('import_errors').select('*').order('date', { ascending: false });
         if (error) throw error;
         return (data || []) as ImportErrorLog[];
       } catch (err) { return localDb.getErrorLogs(); }
@@ -161,22 +174,26 @@ export const dataService = {
     const current = localDb.getErrorLogs();
     current.unshift(log);
     localDb.saveErrorLogs(current.slice(0, 100));
-    if (isSupabaseConfigured && supabase) {
-      try { await supabase.from('import_errors').insert(log); } catch (err) {}
+    
+    const sb = getSupabaseClient();
+    if (sb) {
+      try { await sb.from('import_errors').insert(log); } catch (err) {}
     }
   },
 
   async clearErrorLogs(): Promise<void> {
     localDb.saveErrorLogs([]);
-    if (isSupabaseConfigured && supabase) {
-      try { await supabase.from('import_errors').delete().neq('id', 'null'); } catch (err) {}
+    const sb = getSupabaseClient();
+    if (sb) {
+      try { await sb.from('import_errors').delete().neq('id', 'null'); } catch (err) {}
     }
   },
 
   async getSystemSettings(): Promise<SystemSetting[]> {
-    if (isSupabaseConfigured && supabase) {
+    const sb = getSupabaseClient();
+    if (sb) {
       try {
-        const { data, error } = await supabase.from('system_settings').select('*');
+        const { data, error } = await sb.from('system_settings').select('*');
         if (error) throw error;
         return data.length > 0 ? (data as SystemSetting[]) : localDb.getSettings();
       } catch (err) { return localDb.getSettings(); }
@@ -186,10 +203,11 @@ export const dataService = {
 
   async saveSystemSettings(settings: SystemSetting[]): Promise<void> {
     localDb.saveSettings(settings);
-    if (isSupabaseConfigured && supabase) {
+    const sb = getSupabaseClient();
+    if (sb) {
       try {
         for (const s of settings) {
-          await supabase.from('system_settings').upsert(s);
+          await sb.from('system_settings').upsert(s);
         }
       } catch (err) {}
     }

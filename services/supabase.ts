@@ -1,54 +1,38 @@
 
-import { createClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-/**
- * INSTRUÇÕES PARA O SQL EDITOR DO SUPABASE:
- * 
- * CREATE TABLE IF NOT EXISTS users (
- *   id TEXT PRIMARY KEY,
- *   name TEXT,
- *   email TEXT UNIQUE,
- *   password TEXT,
- *   role TEXT,
- *   status TEXT,
- *   last_login TEXT
- * );
- * 
- * CREATE TABLE IF NOT EXISTS invoices (
- *   id TEXT PRIMARY KEY,
- *   secretaria TEXT,
- *   fornecedor TEXT,
- *   ne TEXT,
- *   nf TEXT,
- *   valor NUMERIC,
- *   vcto DATE,
- *   pgto DATE,
- *   situacao TEXT,
- *   history JSONB
- * );
- * 
- * CREATE TABLE IF NOT EXISTS import_errors (
- *   id TEXT PRIMARY KEY,
- *   date TIMESTAMPTZ DEFAULT now(),
- *   fileName TEXT,
- *   errorType TEXT,
- *   details TEXT,
- *   userEmail TEXT
- * );
- * 
- * ALTER TABLE users ENABLE ROW LEVEL SECURITY;
- * CREATE POLICY "Permitir tudo para anon" ON users FOR ALL USING (true) WITH CHECK (true);
- * ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
- * CREATE POLICY "Permitir tudo para anon" ON invoices FOR ALL USING (true) WITH CHECK (true);
- * ALTER TABLE import_errors ENABLE ROW LEVEL SECURITY;
- * CREATE POLICY "Permitir tudo para anon" ON import_errors FOR ALL USING (true) WITH CHECK (true);
- */
+// Chaves padrão para fallback inicial
+const DEFAULT_URL = 'https://qiafgsigctmizdrgrdls.supabase.co';
+const DEFAULT_KEY = 'sb_publishable_PUkC5A7ZPTKRhqRQsPEddA_1UQ26Jt8';
 
-const supabaseUrl = 'https://qiafgsigctmizdrgrdls.supabase.co';
-const supabaseAnonKey = 'sb_publishable_PUkC5A7ZPTKRhqRQsPEddA_1UQ26Jt8';
+// Função para obter as credenciais salvas no LocalStorage
+const getStoredCredentials = () => {
+  try {
+    const settingsStr = localStorage.getItem('govflow_local_settings');
+    if (settingsStr) {
+      const settings = JSON.parse(settingsStr);
+      const url = settings.find((s: any) => s.key === 'supabase_url')?.value;
+      const key = settings.find((s: any) => s.key === 'supabase_key')?.value;
+      if (url && key) return { url, key };
+    }
+  } catch (e) {}
+  return { url: DEFAULT_URL, key: DEFAULT_KEY };
+};
 
-export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey);
+export const getSupabaseClient = (): SupabaseClient | null => {
+  const { url, key } = getStoredCredentials();
+  
+  // Validação básica para evitar erros de inicialização com strings vazias
+  if (!url || !key || url.includes('exemplo.com')) return null;
+  
+  try {
+    return createClient(url, key);
+  } catch (e) {
+    console.warn("Falha ao instanciar cliente Supabase:", e);
+    return null;
+  }
+};
 
-export const supabase = isSupabaseConfigured 
-  ? createClient(supabaseUrl, supabaseAnonKey) 
-  : null;
+// Mantemos a exportação estática para compatibilidade, mas agora ela é uma função de conveniência
+export const supabase = getSupabaseClient();
+export const isSupabaseConfigured = !!supabase;
