@@ -5,9 +5,13 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc && vite build",
-    "preview": "vite preview"
+    "dev": "npm run check-node && vite",
+    "build": "npm run check-node && tsc && vite build",
+    "preview": "vite preview",
+    "check-node": "node -e 'const [m]=process.versions.node.split(\".\"); if(parseInt(m)<18) { console.error(\"\\x1b[31mERRO: Este projeto requer Node.js v18 ou superior. Sua versão atual é v\"+process.versions.node + \". Por favor, atualize o Node.js para continuar.\\x1b[0m\"); process.exit(1); }'"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "dependencies": {
     "react": "^19.0.0",
@@ -15,7 +19,7 @@
     "@google/genai": "^1.38.0",
     "recharts": "^2.15.0",
     "@supabase/supabase-js": "^2.45.4",
-    "xlsx": "^0.18.5"
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.2/xlsx-0.20.2.tgz"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
