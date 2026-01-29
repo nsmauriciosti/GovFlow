@@ -1,15 +1,16 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { User, UserRole } from '../types';
+import { User, UserRole, ViewType } from '../types';
 
 interface SidebarProps {
-  currentView: 'dashboard' | 'invoices' | 'users' | 'logs';
-  onNavigate: (view: 'dashboard' | 'invoices' | 'users' | 'logs') => void;
+  currentView: ViewType;
+  onNavigate: (view: ViewType) => void;
   currentUser: User | null;
   onLogout: () => void;
+  systemName: string;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, currentUser, onLogout }) => {
+const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, currentUser, onLogout, systemName }) => {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
 
@@ -39,8 +40,15 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, currentUser,
     { 
       id: 'logs', label: 'Logs de Erro', show: currentUser.role === UserRole.ADMIN,
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+    },
+    { 
+      id: 'settings', label: 'Configurações', show: currentUser.role === UserRole.ADMIN,
+      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
     }
   ];
+
+  const [firstName, ...rest] = systemName.split(' ');
+  const lastName = rest.join(' ');
 
   return (
     <aside className="w-72 bg-slate-950 text-slate-300 flex flex-col h-screen sticky top-0 no-print shrink-0">
@@ -48,13 +56,15 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, currentUser,
         <div className="bg-indigo-600 p-2 rounded-xl shadow-lg shadow-indigo-500/20">
           <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 00-2 2v1h16V6a2 2 0 00-2-2H4z" /><path fillRule="evenodd" d="M18 9H2v5a2 2 0 002 2h12a2 2 0 002-2V9z" clipRule="evenodd" /></svg>
         </div>
-        <span className="font-black text-white tracking-tight text-xl uppercase">GovFlow <span className="text-indigo-500">Pro</span></span>
+        <span className="font-black text-white tracking-tight text-xl uppercase">
+          {firstName} <span className="text-indigo-500">{lastName}</span>
+        </span>
       </div>
 
       <nav className="flex-1 px-4 space-y-2">
         {menuItems.filter(item => item.show).map((item) => (
           <button
-            key={item.id} onClick={() => onNavigate(item.id as any)}
+            key={item.id} onClick={() => onNavigate(item.id as ViewType)}
             className={`w-full flex items-center gap-3 px-5 py-4 rounded-2xl text-sm font-bold transition-all duration-200 group ${
               currentView === item.id ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-600/20' : 'hover:bg-slate-900 hover:text-white'
             }`}

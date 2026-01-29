@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Invoice, Situacao, Filters, User, UserRole, HistoryEntry } from './types';
+import { Invoice, Situacao, Filters, User, UserRole, HistoryEntry, ViewType, SystemSetting } from './types';
 import { formatCurrency, generateId } from './utils';
 import { dataService } from './services/dataService';
 import KpiCard from './components/KpiCard';
@@ -11,6 +11,7 @@ import ManualEntryModal from './components/ManualEntryModal';
 import Sidebar from './components/Sidebar';
 import UserManagementView from './components/UserManagementView';
 import ErrorLogsView from './components/ErrorLogsView';
+import SettingsView from './components/SettingsView';
 import UserModal from './components/UserModal';
 import LoginView from './components/LoginView';
 import InvoiceDetailsPanel from './components/InvoiceDetailsPanel';
@@ -24,9 +25,10 @@ const App: React.FC = () => {
   const [authError, setAuthError] = useState<string | undefined>();
   const [isAuthLoading, setIsAuthLoading] = useState(false);
 
-  const [currentView, setCurrentView] = useState<'dashboard' | 'invoices' | 'users' | 'logs'>('dashboard');
+  const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [users, setUsers] = useState<User[]>([]);
+  const [settings, setSettings] = useState<SystemSetting[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
   
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -53,7 +55,27 @@ const App: React.FC = () => {
     secretaria: '', fornecedor: '', situacao: '', startDate: '', endDate: ''
   });
 
+  // Configurações Globais Computadas
+  const systemName = settings.find(s => s.key === 'system_name')?.value || 'GovFlow Pro';
+  const systemSlogan = settings.find(s => s.key === 'system_slogan')?.value || 'Portal de Gestão de Finanças Públicas';
+  const footerText = settings.find(s => s.key === 'footer_text')?.value || 'Sistema restrito para servidores autorizados.';
+  const faviconUrl = settings.find(s => s.key === 'favicon_url')?.value;
+
   useEffect(() => { loadInitialData(); }, []);
+
+  // Efeito para Favicon e Title
+  useEffect(() => {
+    document.title = systemName;
+    if (faviconUrl) {
+      let link = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
+      if (!link) {
+        link = document.createElement('link');
+        link.rel = 'icon';
+        document.head.appendChild(link);
+      }
+      link.href = faviconUrl;
+    }
+  }, [systemName, faviconUrl]);
 
   useEffect(() => {
     if (currentView === 'dashboard' && invoices.length > 0 && !aiInsight) generateInsights();
@@ -75,12 +97,14 @@ const App: React.FC = () => {
     try {
       setIsLoadingData(true);
       await dataService.seedDatabase();
-      const [fetchedInvoices, fetchedUsers] = await Promise.all([
+      const [fetchedInvoices, fetchedUsers, fetchedSettings] = await Promise.all([
         dataService.getInvoices(),
-        dataService.getUsers()
+        dataService.getUsers(),
+        dataService.getSystemSettings()
       ]);
       setInvoices(fetchedInvoices);
       setUsers(fetchedUsers);
+      setSettings(fetchedSettings);
     } catch (error) {
       addToast('Erro ao sincronizar dados.', 'error');
     } finally { setIsLoadingData(false); }
@@ -110,35 +134,15 @@ const App: React.FC = () => {
     setSelectedInvoice(null); setAiInsight(''); addToast('Sessão encerrada.', 'info');
   }, [addToast]);
 
-  const uniqueSecretarias = useMemo(() => {
-    const secs = invoices.map(i => i.secretaria.trim());
-    return Array.from(new Set(secs)).sort();
-  }, [invoices]);
-
-  const availableMonths = useMemo(() => {
-    interface MonthItem { label: string; value: string; }
-    const months: MonthItem[] = invoices.map(i => {
-      const date = new Date(i.vcto);
-      return {
-        label: date.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }),
-        value: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
-      };
-    });
-    const uniqueMap = new Map<string, MonthItem>(months.map(m => [m.value, m]));
-    const unique = Array.from(uniqueMap.values());
-    return unique.sort((a, b) => b.value.localeCompare(a.value));
-  }, [invoices]);
-
-  const handleMonthSelect = useCallback((monthVal: string) => {
-    if (!monthVal) {
-      setFilters(prev => ({ ...prev, startDate: '', endDate: '' }));
-      return;
+  const handleSaveSettings = async (newSettings: SystemSetting[]) => {
+    try {
+      await dataService.saveSystemSettings(newSettings);
+      setSettings(newSettings);
+      addToast('Configurações aplicadas com sucesso.', 'success');
+    } catch (err) {
+      addToast('Erro ao salvar configurações.', 'error');
     }
-    const [year, month] = monthVal.split('-').map(Number);
-    const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
-    const endDate = new Date(year, month, 0).toISOString().split('T')[0];
-    setFilters(prev => ({ ...prev, startDate, endDate }));
-  }, []);
+  };
 
   const filteredInvoices = useMemo(() => {
     return invoices.filter(inv => {
@@ -200,7 +204,6 @@ const App: React.FC = () => {
     }
   }, [selectedInvoice, addToast]);
 
-  // Fix: Added handleSaveUser callback to handle user creation/updates
   const handleSaveUser = useCallback(async (userData: User) => {
     try {
       await dataService.saveUser(userData);
@@ -212,12 +215,9 @@ const App: React.FC = () => {
       setIsUserModalOpen(false);
       setEditingUser(null);
       addToast('Usuário salvo com sucesso.', 'success');
-    } catch (err) {
-      addToast('Erro ao salvar usuário.', 'error');
-    }
+    } catch (err) { addToast('Erro ao salvar usuário.', 'error'); }
   }, [addToast]);
 
-  // Fix: Added handleDeleteUser callback to handle user deletion
   const handleDeleteUser = useCallback(async (id: string) => {
     if (id === currentUser?.id) {
       addToast('Você não pode excluir seu próprio usuário.', 'warning');
@@ -228,9 +228,7 @@ const App: React.FC = () => {
         await dataService.deleteUser(id);
         setUsers(prev => prev.filter(u => u.id !== id));
         addToast('Usuário removido.', 'success');
-      } catch (err) {
-        addToast('Erro ao deletar usuário.', 'error');
-      }
+      } catch (err) { addToast('Erro ao deletar usuário.', 'error'); }
     }
   }, [currentUser, addToast]);
 
@@ -238,33 +236,21 @@ const App: React.FC = () => {
     setInvoices(prevInvoices => {
       const inv = prevInvoices.find(i => i.id === id);
       if (!inv || inv.situacao === Situacao.CANCELADO) return prevInvoices;
-      
       const isNowPago = inv.situacao === Situacao.NAO_PAGO;
       const historyEntry: HistoryEntry = {
         id: generateId(), date: new Date().toISOString(),
         description: `Alteração para ${isNowPago ? 'PAGO' : 'NÃO PAGO'}.`,
         user: currentUser?.name || 'Sistema'
       };
-      
       const updatedInv = { ...inv, situacao: isNowPago ? Situacao.PAGO : Situacao.NAO_PAGO, pgto: isNowPago ? new Date().toISOString().split('T')[0] : null, history: [...(inv.history || []), historyEntry] };
-      
       dataService.saveInvoice(updatedInv).catch(() => addToast('Erro ao sincronizar status.', 'error'));
-      
       return prevInvoices.map(i => i.id === id ? updatedInv : i);
     });
     setAiInsight('');
   }, [currentUser, addToast]);
 
-  const handleSelectInvoice = useCallback((invoice: Invoice) => {
-    setSelectedInvoice(invoice);
-  }, []);
-
-  const handleEditInvoice = useCallback((invoice: Invoice) => {
-    setEditingInvoice(invoice);
-    setIsManualModalOpen(true);
-  }, []);
-
-  if (!isAuthenticated) return <LoginView onLogin={handleLogin} error={authError} isLoading={isAuthLoading} />;
+  if (!isAuthenticated) return <LoginView onLogin={handleLogin} error={authError} isLoading={isAuthLoading} systemName={systemName} systemSlogan={systemSlogan} footerText={footerText} />;
+  
   if (isLoadingData) return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center">
       <div className="text-center">
@@ -276,17 +262,17 @@ const App: React.FC = () => {
 
   return (
     <div className="flex min-h-screen bg-slate-50/50">
-      <Sidebar currentView={currentView} onNavigate={setCurrentView} currentUser={currentUser} onLogout={handleLogout} />
+      <Sidebar currentView={currentView} onNavigate={setCurrentView} currentUser={currentUser} onLogout={handleLogout} systemName={systemName} />
       <div className="flex-1 flex flex-col min-w-0">
         <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 py-4 px-8 sticky top-0 z-40 no-print flex justify-between items-center shadow-sm">
           <div className="flex items-center gap-3">
              <div className="h-4 w-1 bg-indigo-600 rounded-full"></div>
              <h2 className="text-sm font-bold text-slate-900 tracking-tight uppercase flex items-center gap-2">
-               {currentView === 'dashboard' ? 'Analytics' : currentView === 'invoices' ? 'Notas Fiscais' : currentView === 'users' ? 'Usuários' : 'Logs de Sistema'}
+               {currentView === 'dashboard' ? 'Analytics' : currentView === 'invoices' ? 'Notas Fiscais' : currentView === 'users' ? 'Usuários' : currentView === 'settings' ? 'Configurações' : 'Logs de Sistema'}
              </h2>
           </div>
           <div className="flex items-center gap-4">
-            <NotificationDropdown invoices={invoices} onSelectInvoice={handleSelectInvoice} />
+            <NotificationDropdown invoices={invoices} onSelectInvoice={setSelectedInvoice} />
             <div className="h-8 w-[1px] bg-slate-100 mx-2"></div>
             <div className="flex gap-2">
               {currentView === 'invoices' && (
@@ -324,24 +310,18 @@ const App: React.FC = () => {
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Painel de Filtros Avançados</h3>
                   <button onClick={() => setFilters({ secretaria: '', fornecedor: '', situacao: '', startDate: '', endDate: '' })} className="text-[10px] text-indigo-600 font-bold uppercase hover:underline">Limpar Filtros</button>
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4">
                   <div className="relative lg:col-span-2">
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Secretaria (Nome Exato)</label>
                     <input 
-                      list="secretarias-list"
-                      placeholder="Selecione ou digite..." 
+                      placeholder="Busca por secretaria..." 
                       className={`w-full p-2.5 border rounded-xl text-sm font-bold text-slate-900 outline-none transition-all ${
                         filters.secretaria ? 'border-indigo-400 bg-indigo-50/10' : 'border-slate-200 bg-white'
                       }`} 
                       value={filters.secretaria} 
                       onChange={(e) => setFilters(prev => ({...prev, secretaria: e.target.value}))} 
                     />
-                    <datalist id="secretarias-list">
-                      {uniqueSecretarias.map(sec => <option key={sec} value={sec} />)}
-                    </datalist>
                   </div>
-
                   <div className="relative lg:col-span-2">
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Fornecedor (Busca Parcial)</label>
                     <input 
@@ -351,8 +331,7 @@ const App: React.FC = () => {
                       onChange={(e) => setFilters(prev => ({...prev, fornecedor: e.target.value}))} 
                     />
                   </div>
-                  
-                  <div className="lg:col-span-1">
+                  <div className="lg:col-span-2">
                     <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Situação</label>
                     <select 
                       className="w-full p-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/10" 
@@ -365,49 +344,20 @@ const App: React.FC = () => {
                       <option value={Situacao.CANCELADO}>CANCELADO</option>
                     </select>
                   </div>
-
-                  <div className="lg:col-span-1">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Mês Referência</label>
-                    <select 
-                      className="w-full p-2.5 border border-indigo-200 bg-indigo-50/30 text-indigo-700 font-black rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10" 
-                      onChange={(e) => handleMonthSelect(e.target.value)}
-                    >
-                      <option value="">Customizado...</option>
-                      {availableMonths.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-                    </select>
-                  </div>
-
-                  <div className="md:col-span-2 lg:col-span-3">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Início do Período</label>
-                    <input 
-                      type="date" 
-                      className="w-full p-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/10" 
-                      value={filters.startDate} 
-                      onChange={(e) => setFilters(prev => ({...prev, startDate: e.target.value}))} 
-                    />
-                  </div>
-                  <div className="md:col-span-2 lg:col-span-3">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Fim do Período</label>
-                    <input 
-                      type="date" 
-                      className="w-full p-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/10" 
-                      value={filters.endDate} 
-                      onChange={(e) => setFilters(prev => ({...prev, endDate: e.target.value}))} 
-                    />
-                  </div>
                 </div>
               </section>
               <InvoiceTable 
                 invoices={filteredInvoices} 
                 onDelete={handleDeleteInvoice} 
                 onToggleStatus={handleToggleStatus} 
-                onSelectInvoice={handleSelectInvoice} 
-                onEditInvoice={handleEditInvoice} 
+                onSelectInvoice={setSelectedInvoice} 
+                onEditInvoice={(inv) => { setEditingInvoice(inv); setIsManualModalOpen(true); }} 
               />
             </div>
           )}
           {currentView === 'users' && <UserManagementView users={users} onAddUser={() => { setEditingUser(null); setIsUserModalOpen(true); }} onEditUser={(u) => { setEditingUser(u); setIsUserModalOpen(true); }} onDeleteUser={handleDeleteUser} currentUser={currentUser} />}
           {currentView === 'logs' && <ErrorLogsView />}
+          {currentView === 'settings' && <SettingsView settings={settings} onSave={handleSaveSettings} />}
         </main>
       </div>
       <Toast toasts={toasts} onRemove={removeToast} />

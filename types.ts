@@ -64,3 +64,10 @@ export interface Filters {
   startDate: string;
   endDate: string;
 }
+
+export interface SystemSetting {
+  key: string;
+  value: string;
+}
+
+export type ViewType = 'dashboard' | 'invoices' | 'users' | 'logs' | 'settings';
