@@ -46,7 +46,8 @@ const InvoiceRow = React.memo(({
   } else if (isOverdue) {
     rowBackgroundClass = "bg-rose-50/60 dark:bg-rose-950/20 border-l-4 border-l-rose-500 hover:bg-rose-100/50 dark:hover:bg-rose-900/30";
   } else if (isNearDue) {
-    rowBackgroundClass = "bg-gradient-to-r from-amber-50/40 to-transparent dark:from-amber-900/10 dark:to-transparent border-l-4 border-l-amber-400 hover:from-amber-100/40 transition-all";
+    // Realce sutil para vencimentos próximos (7 dias)
+    rowBackgroundClass = "bg-gradient-to-r from-amber-50/60 to-transparent dark:from-amber-900/10 dark:to-transparent border-l-4 border-l-amber-400 hover:from-amber-100/40 transition-all";
   } else if (isPendencia) {
     rowBackgroundClass = "bg-indigo-50/20 dark:bg-indigo-900/10 border-l-4 border-l-indigo-300 dark:border-l-indigo-700 hover:bg-indigo-100/30";
   } else {
@@ -86,8 +87,21 @@ const InvoiceRow = React.memo(({
       <td className={`p-3 lg:p-4 text-xs font-black text-right border-b border-slate-100 dark:border-slate-800 whitespace-nowrap ${isCancelado ? 'text-slate-400' : 'text-slate-900 dark:text-slate-100'}`}>{formatCurrency(invoice.valor)}</td>
       <td className={`p-3 lg:p-4 text-xs border-b border-slate-100 dark:border-slate-800 whitespace-nowrap ${isCancelado ? 'text-slate-400' : 'text-slate-600 dark:text-slate-400'}`}>
         <div className="flex items-center gap-2">
-          <span className={isNearDue ? 'font-bold text-amber-700 dark:text-amber-400' : ''}>{formatDateBR(invoice.vcto)}</span>
-          {isOverdue && <div className="text-rose-500"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg></div>}
+          <span className={isNearDue || isOverdue ? 'font-bold' : ''}>
+            <span className={isNearDue ? 'text-amber-700 dark:text-amber-400' : isOverdue ? 'text-rose-700 dark:text-rose-400' : ''}>
+              {formatDateBR(invoice.vcto)}
+            </span>
+          </span>
+          {isOverdue && (
+            <div className="text-rose-500" title="Vencido">
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+          )}
+          {isNearDue && (
+            <div className="text-amber-500" title={`Vence em ${daysUntil} dia(s)`}>
+              <svg className="w-3.5 h-3.5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+            </div>
+          )}
         </div>
       </td>
       <td className={`p-3 lg:p-4 text-xs border-b border-slate-100 dark:border-slate-800 whitespace-nowrap ${isCancelado ? 'text-slate-300 dark:text-slate-700' : 'text-slate-600 dark:text-slate-400'}`}>{formatDateBR(invoice.pgto)}</td>
@@ -180,13 +194,27 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, onDelete, onToggl
     <th 
       scope="col" 
       onClick={() => handleSort(field)}
-      className={`p-3 lg:p-4 text-[9px] lg:text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors select-none text-${align}`}
+      title={`Clique para ordenar por ${label}`}
+      aria-sort={sortField === field ? (sortOrder === 'asc' ? 'ascending' : 'descending') : 'none'}
+      className={`p-3 lg:p-4 text-[9px] lg:text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors select-none group text-${align}`}
     >
       <div className={`flex items-center gap-1.5 ${align === 'right' ? 'justify-end' : align === 'center' ? 'justify-center' : 'justify-start'}`}>
         {label}
-        {sortField === field && (
-          <span className="text-indigo-600 font-black">{sortOrder === 'asc' ? '↑' : '↓'}</span>
-        )}
+        <div className="flex flex-col">
+          {sortField === field ? (
+            <span className="text-indigo-600 font-black animate-in fade-in duration-300">
+              {sortOrder === 'asc' ? (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 15l7-7 7 7" /></svg>
+              ) : (
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M19 9l-7 7-7-7" /></svg>
+              )}
+            </span>
+          ) : (
+            <span className="text-slate-300 dark:text-slate-700 opacity-0 group-hover:opacity-100 transition-opacity">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4" /></svg>
+            </span>
+          )}
+        </div>
       </div>
     </th>
   );
@@ -199,7 +227,6 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, onDelete, onToggl
         </div>
       )}
 
-      {/* Wrapper com Scroll Horizontal obrigatório para evitar colapso de colunas */}
       <div className="overflow-x-auto scrollbar-thin">
         <table className="w-full text-left border-collapse min-w-[900px]" role="table">
           <thead className="bg-slate-50/80 dark:bg-slate-800/80 backdrop-blur-sm sticky top-0 z-10 transition-colors">
@@ -208,7 +235,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, onDelete, onToggl
               {renderSortableHeader('Fornecedor', 'fornecedor')}
               <th scope="col" className="p-3 lg:p-4 text-[9px] lg:text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800">Identificação</th>
               {renderSortableHeader('Valor', 'valor', 'right')}
-              {renderSortableHeader('Vcto', 'vcto')}
+              {renderSortableHeader('Vencimento', 'vcto')}
               <th scope="col" className="p-3 lg:p-4 text-[9px] lg:text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800">Liquidação</th>
               <th scope="col" className="p-3 lg:p-4 text-[9px] lg:text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-100 dark:border-slate-800">Status</th>
               <th scope="col" className="p-3 lg:p-4 text-[9px] lg:text-[10px] font-black text-slate-500 uppercase tracking-widest text-center border-b border-slate-100 dark:border-slate-800">Ações</th>
