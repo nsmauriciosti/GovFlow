@@ -29,6 +29,20 @@ const DEFAULT_SETTINGS: SystemSetting[] = [
   { key: 'supabase_key', value: 'sb_publishable_PUkC5A7ZPTKRhqRQsPEddA_1UQ26Jt8' }
 ];
 
+// Auxiliar para converter data de login para o DB (evita erro 400 se for texto amigável)
+const formatLastLoginForDb = (lastLogin: string) => {
+  if (!lastLogin || lastLogin.includes('Aguardando') || lastLogin.includes('Nunca')) {
+    return null;
+  }
+  // Se já for uma data no formato local, tenta converter para ISO ou retorna null
+  try {
+    const isoDate = new Date(lastLogin).toISOString();
+    return isoDate;
+  } catch (e) {
+    return null;
+  }
+};
+
 const localDb = {
   getInvoices: (): Invoice[] => {
     const data = localStorage.getItem(LOCAL_STORAGE_KEYS.INVOICES);
@@ -74,7 +88,20 @@ export const dataService = {
     try {
       const { data: adminExists, error } = await sb.from('users').select('id').eq('email', DEFAULT_ADMIN.email).maybeSingle();
       if (error) throw error;
-      if (!adminExists) await sb.from('users').insert(DEFAULT_ADMIN);
+      
+      if (!adminExists) {
+        // Mapeia para snake_case antes de inserir
+        const dbAdmin = {
+          id: DEFAULT_ADMIN.id,
+          name: DEFAULT_ADMIN.name,
+          email: DEFAULT_ADMIN.email,
+          password: DEFAULT_ADMIN.password,
+          role: DEFAULT_ADMIN.role,
+          status: DEFAULT_ADMIN.status,
+          last_login: null // Seed sempre começa como null no DB
+        };
+        await sb.from('users').insert(dbAdmin);
+      }
       
       const { data: settingsExist } = await sb.from('system_settings').select('key').limit(1);
       if (!settingsExist || settingsExist.length === 0) {
@@ -83,7 +110,7 @@ export const dataService = {
         }
       }
     } catch (err) {
-      console.warn("Supabase Offline ou Erro de Conexão (404/Network). Usando LocalDB.");
+      console.warn("Supabase Offline ou Erro de Conexão. Usando LocalDB.");
     }
   },
 
@@ -129,7 +156,15 @@ export const dataService = {
       try {
         const { data, error } = await sb.from('users').select('*');
         if (error) throw error;
-        return (data || []).map(u => ({ ...u, lastLogin: u.last_login })) as User[];
+        return (data || []).map(u => ({ 
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          password: u.password,
+          role: u.role as UserRole,
+          status: u.status as 'Ativo' | 'Inactive',
+          lastLogin: u.last_login ? new Date(u.last_login).toLocaleString('pt-BR') : 'Nunca acessou'
+        })) as User[];
       } catch (err) { return localUsers; }
     }
     return localUsers;
@@ -144,9 +179,24 @@ export const dataService = {
     const sb = getSupabaseClient();
     if (sb) {
       try {
-        const dbUser = { id: user.id, name: user.name, email: user.email, password: user.password, role: user.role, status: user.status, last_login: user.lastLogin };
-        await sb.from('users').upsert(dbUser);
-      } catch (err) {}
+        // Mapeamento explícito para colunas do Banco de Dados
+        const dbUser = { 
+          id: user.id, 
+          name: user.name, 
+          email: user.email, 
+          password: user.password, 
+          role: user.role, 
+          status: user.status, 
+          last_login: formatLastLoginForDb(user.lastLogin)
+        };
+        const { error } = await sb.from('users').upsert(dbUser);
+        if (error) {
+          console.error("Erro ao salvar no Supabase:", error);
+          throw error;
+        }
+      } catch (err) {
+        console.error("Falha na sincronização Supabase:", err);
+      }
     }
   },
 
