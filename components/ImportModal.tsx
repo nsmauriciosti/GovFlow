@@ -14,10 +14,20 @@ interface ImportModalProps {
   userEmail: string;
 }
 
+interface ImportSummary {
+  successFiles: string[];
+  errorFiles: { name: string; details: string }[];
+  totalInvoices: number;
+  invoices: Invoice[];
+}
+
 const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, userEmail }) => {
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [statusMessage, setStatusMessage] = useState('');
   const [dragActive, setDragActive] = useState(false);
   const [pastedText, setPastedText] = useState('');
+  const [summary, setSummary] = useState<ImportSummary | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const logError = async (fileName: string, type: ImportErrorLog['errorType'], details: string) => {
@@ -34,59 +44,111 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
 
   const processFiles = async (files: FileList) => {
     setLoading(true);
+    setProgress(10);
+    setStatusMessage("Lendo arquivos selecionados...");
+    
     let allExtractedText = "";
-    let currentFileName = "";
+    const currentSuccessFiles: string[] = [];
+    const currentErrorFiles: { name: string; details: string }[] = [];
 
     try {
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        currentFileName = file.name;
         const extension = file.name.split('.').pop()?.toLowerCase();
+        
+        const stepProgress = 10 + Math.round(((i + 1) / files.length) * 40);
+        setProgress(stepProgress);
 
         try {
+          let text = "";
           if (extension === 'xlsx' || extension === 'xls') {
             const data = await file.arrayBuffer();
             const workbook = XLSX.read(data);
             const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-            allExtractedText += `\n[ARQUIVO EXCEL: ${file.name}]\n` + XLSX.utils.sheet_to_csv(firstSheet);
+            text = XLSX.utils.sheet_to_csv(firstSheet);
+            allExtractedText += `\n[ARQUIVO EXCEL: ${file.name}]\n` + text;
           } 
           else if (extension === 'xml') {
-            const text = await file.text();
+            text = await file.text();
             allExtractedText += `\n[ARQUIVO XML NFE: ${file.name}]\n` + text;
           } 
           else if (extension === 'csv' || extension === 'txt') {
-            const text = await file.text();
+            text = await file.text();
             allExtractedText += `\n[ARQUIVO TEXTO: ${file.name}]\n` + text;
           } else {
             throw new Error(`Extensão .${extension} não suportada.`);
           }
+          currentSuccessFiles.push(file.name);
         } catch (fileErr: any) {
-          await logError(file.name, 'FORMATO_INVALIDO', fileErr.message || "Erro desconhecido ao ler arquivo.");
-          onToast(`Falha no arquivo ${file.name}: ${fileErr.message}`, "error");
+          const errMsg = fileErr.message || "Erro desconhecido ao ler arquivo.";
+          currentErrorFiles.push({ name: file.name, details: errMsg });
+          await logError(file.name, 'FORMATO_INVALIDO', errMsg);
         }
       }
 
       if (allExtractedText.trim()) {
-        await runAiParsing(allExtractedText, "Lote de arquivos");
+        await runAiParsing(allExtractedText, "Lote de arquivos", true, currentSuccessFiles, currentErrorFiles);
+      } else {
+        if (currentErrorFiles.length > 0) {
+          setSummary({
+            successFiles: [],
+            errorFiles: currentErrorFiles,
+            totalInvoices: 0,
+            invoices: []
+          });
+        }
+        setLoading(false);
       }
     } catch (err: any) {
       onToast("Erro crítico no processamento de arquivos.", "error");
-    } finally {
       setLoading(false);
     }
   };
 
-  const runAiParsing = async (content: string, sourceName: string) => {
+  const runAiParsing = async (
+    content: string, 
+    sourceName: string, 
+    isFromFiles = false, 
+    successFiles: string[] = [], 
+    errorFiles: { name: string; details: string }[] = []
+  ) => {
     if (!content.trim()) return;
     setLoading(true);
+    
+    if (!isFromFiles) {
+      setProgress(20);
+      setStatusMessage("Preparando dados para análise...");
+    } else {
+      setProgress(60);
+      setStatusMessage("Enviando para Inteligência Artificial...");
+    }
+
     try {
+      const aiTimer = setTimeout(() => {
+        setProgress(80);
+        setStatusMessage("IA Gemini estruturando registros financeiros...");
+      }, 800);
+
       const parsed = await parseBulkData(content);
+      clearTimeout(aiTimer);
+
       if (!parsed || parsed.length === 0) {
-        await logError(sourceName, 'FALHA_IA', "A IA não conseguiu estruturar os dados. O conteúdo pode estar ilegível ou em formato não reconhecido.");
-        onToast("A IA não identificou dados financeiros válidos.", "warning");
+        const details = "A IA não conseguiu estruturar os dados. O conteúdo pode estar ilegível ou em formato não reconhecido.";
+        await logError(sourceName, 'FALHA_IA', details);
+        
+        setSummary({
+          successFiles: isFromFiles ? [] : [],
+          errorFiles: isFromFiles ? [...errorFiles, { name: "Análise IA", details }] : [{ name: sourceName, details }],
+          totalInvoices: 0,
+          invoices: []
+        });
+        setLoading(false);
         return;
       }
       
+      setProgress(95);
+      setStatusMessage("Finalizando extração...");
+
       const invoices: Invoice[] = parsed.map(p => ({
         id: generateId(),
         secretaria: p.secretaria || 'NÃO INFORMADA',
@@ -99,12 +161,19 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
         situacao: (p.situacao as Situacao) || Situacao.NAO_PAGO
       }));
       
-      onImport(invoices);
-      onClose();
+      setProgress(100);
+      setSummary({
+        successFiles,
+        errorFiles,
+        totalInvoices: invoices.length,
+        invoices
+      });
+      setLoading(false);
+      
     } catch (err: any) {
-      await logError(sourceName, 'SISTEMA', err.message || "Erro no serviço de IA Gemini.");
+      const errMsg = err.message || "Erro no serviço de IA Gemini.";
+      await logError(sourceName, 'SISTEMA', errMsg);
       onToast("Erro técnico no processamento da IA.", "error");
-    } finally {
       setLoading(false);
     }
   };
@@ -121,6 +190,94 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
     if (e.dataTransfer.files && e.dataTransfer.files[0]) processFiles(e.dataTransfer.files);
   };
 
+  const confirmImport = () => {
+    if (summary && summary.invoices.length > 0) {
+      onImport(summary.invoices);
+      onClose();
+    } else {
+      onClose();
+    }
+  };
+
+  // Visualização de Resumo
+  if (summary) {
+    return (
+      <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300">
+          <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+            <div>
+              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Resumo do Processamento</h3>
+              <p className="text-sm text-slate-500 font-medium">Confira os resultados antes de salvar.</p>
+            </div>
+            <div className="bg-indigo-600 text-white px-4 py-1 rounded-full text-xs font-black uppercase">
+              {summary.totalInvoices} Itens Identificados
+            </div>
+          </div>
+
+          <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+            {summary.successFiles.length > 0 && (
+              <section>
+                <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
+                  Arquivos Processados ({summary.successFiles.length})
+                </h4>
+                <ul className="space-y-2">
+                  {summary.successFiles.map((f, i) => (
+                    <li key={i} className="text-sm text-slate-600 bg-emerald-50/50 p-2 rounded-lg border border-emerald-100 flex justify-between">
+                      <span className="font-medium truncate">{f}</span>
+                      <span className="text-emerald-700 font-bold">OK</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {summary.errorFiles.length > 0 && (
+              <section>
+                <h4 className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-rose-500"></div>
+                  Falhas Detectadas ({summary.errorFiles.length})
+                </h4>
+                <ul className="space-y-2">
+                  {summary.errorFiles.map((f, i) => (
+                    <li key={i} className="text-sm text-slate-600 bg-rose-50/50 p-3 rounded-lg border border-rose-100">
+                      <div className="flex justify-between mb-1">
+                        <span className="font-bold text-rose-800">{f.name}</span>
+                        <span className="text-rose-600 text-[10px] font-black uppercase">Erro</span>
+                      </div>
+                      <p className="text-xs text-rose-600/80 italic">{f.details}</p>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
+            {summary.totalInvoices === 0 && summary.errorFiles.length === 0 && (
+              <div className="text-center py-8">
+                <p className="text-slate-500 font-medium">Nenhum dado foi extraído dos arquivos fornecidos.</p>
+              </div>
+            )}
+          </div>
+
+          <div className="p-8 border-t border-slate-100 flex justify-end gap-4 bg-slate-50/50">
+            <button onClick={onClose} className="px-8 py-3 rounded-2xl text-slate-600 font-bold hover:bg-slate-200 transition-all">Cancelar</button>
+            <button
+              onClick={confirmImport}
+              className="px-10 py-3 rounded-2xl bg-indigo-600 text-white font-black shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 transition-all active:scale-95"
+            >
+              {summary.totalInvoices > 0 ? 'Confirmar Importação' : 'Fechar'}
+            </button>
+          </div>
+        </div>
+        <style>{`
+          .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+        `}</style>
+      </div>
+    );
+  }
+
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-3xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300">
@@ -134,7 +291,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
           </button>
         </div>
 
-        <div className="p-8 space-y-8">
+        <div className="p-8 space-y-8 relative">
           <div 
             onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
             className={`relative border-2 border-dashed rounded-[2rem] p-12 text-center transition-all ${
@@ -160,11 +317,27 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
                 Selecionar Arquivos
               </button>
             </div>
+
             {loading && (
-              <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center rounded-[2rem] z-10">
-                <div className="flex flex-col items-center gap-4">
-                  <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent"></div>
-                  <p className="text-indigo-600 font-black text-sm uppercase tracking-widest">Analisando Documentos...</p>
+              <div className="absolute inset-0 bg-white/95 backdrop-blur-md flex flex-col items-center justify-center rounded-[2rem] z-20 p-12">
+                <div className="w-full max-w-md space-y-6 text-center">
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-end mb-1">
+                      <p className="text-indigo-600 font-black text-xs uppercase tracking-widest text-left">{statusMessage}</p>
+                      <p className="text-indigo-600 font-black text-xs">{progress}%</p>
+                    </div>
+                    <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner p-0.5 border border-slate-200">
+                      <div 
+                        className="h-full bg-gradient-to-r from-indigo-500 to-indigo-700 rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(79,70,229,0.4)]"
+                        style={{ width: `${progress}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
+                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Processando em tempo real</p>
+                  </div>
                 </div>
               </div>
             )}
@@ -178,19 +351,20 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
           <textarea
             value={pastedText}
             onChange={(e) => setPastedText(e.target.value)}
-            className="w-full h-32 p-4 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-sm font-medium text-slate-700 bg-slate-50/50 transition-all resize-none"
+            disabled={loading}
+            className="w-full h-32 p-4 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-sm font-medium text-slate-700 bg-slate-50/50 transition-all resize-none disabled:opacity-50"
             placeholder="Cole aqui uma tabela ou texto descritivo..."
           />
         </div>
 
         <div className="p-8 border-t border-slate-100 flex justify-end gap-4 bg-slate-50/50">
-          <button onClick={onClose} className="px-8 py-3 rounded-2xl text-slate-600 font-bold hover:bg-slate-200 transition-all">Cancelar</button>
+          <button onClick={onClose} disabled={loading} className="px-8 py-3 rounded-2xl text-slate-600 font-bold hover:bg-slate-200 transition-all">Cancelar</button>
           <button
             onClick={() => runAiParsing(pastedText, "Texto Copiado")}
             disabled={loading || !pastedText.trim()}
             className="px-10 py-3 rounded-2xl bg-indigo-600 text-white font-black shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 disabled:opacity-50 transition-all active:scale-95"
           >
-            {loading ? 'Processando...' : 'Processar Texto'}
+            {loading ? 'Analisando...' : 'Processar Texto'}
           </button>
         </div>
       </div>

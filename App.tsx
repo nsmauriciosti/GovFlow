@@ -17,7 +17,6 @@ import InvoiceDetailsPanel from './components/InvoiceDetailsPanel';
 import NotificationDropdown from './components/NotificationDropdown';
 import Toast, { ToastMessage, ToastType } from './components/Toast';
 import { getFinancialInsights } from './services/geminiService';
-import { isSupabaseConfigured } from './services/supabase';
 
 const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -58,7 +57,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (currentView === 'dashboard' && invoices.length > 0 && !aiInsight) generateInsights();
-  }, [currentView, invoices]);
+  }, [currentView, invoices, aiInsight]);
 
   const generateInsights = async () => {
     setIsAiLoading(true);
@@ -87,7 +86,7 @@ const App: React.FC = () => {
     } finally { setIsLoadingData(false); }
   };
 
-  const handleLogin = async (email: string, pass: string) => {
+  const handleLogin = useCallback(async (email: string, pass: string) => {
     setIsAuthLoading(true); setAuthError(undefined);
     try {
       const currentUsersInDb = await dataService.getUsers();
@@ -104,16 +103,48 @@ const App: React.FC = () => {
       } else setAuthError('E-mail ou senha incorretos.');
     } catch (err) { setAuthError('Erro ao conectar ao banco.'); }
     finally { setIsAuthLoading(false); }
-  };
+  }, [addToast]);
 
-  const handleLogout = () => {
+  const handleLogout = useCallback(() => {
     setIsAuthenticated(false); setCurrentUser(null); setCurrentView('dashboard');
     setSelectedInvoice(null); setAiInsight(''); addToast('Sessão encerrada.', 'info');
-  };
+  }, [addToast]);
+
+  const uniqueSecretarias = useMemo(() => {
+    const secs = invoices.map(i => i.secretaria.trim());
+    return Array.from(new Set(secs)).sort();
+  }, [invoices]);
+
+  const availableMonths = useMemo(() => {
+    interface MonthItem { label: string; value: string; }
+    const months: MonthItem[] = invoices.map(i => {
+      const date = new Date(i.vcto);
+      return {
+        label: date.toLocaleString('pt-BR', { month: 'long', year: 'numeric' }),
+        value: `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`
+      };
+    });
+    const uniqueMap = new Map<string, MonthItem>(months.map(m => [m.value, m]));
+    const unique = Array.from(uniqueMap.values());
+    return unique.sort((a, b) => b.value.localeCompare(a.value));
+  }, [invoices]);
+
+  const handleMonthSelect = useCallback((monthVal: string) => {
+    if (!monthVal) {
+      setFilters(prev => ({ ...prev, startDate: '', endDate: '' }));
+      return;
+    }
+    const [year, month] = monthVal.split('-').map(Number);
+    const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
+    const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+    setFilters(prev => ({ ...prev, startDate, endDate }));
+  }, []);
 
   const filteredInvoices = useMemo(() => {
     return invoices.filter(inv => {
-      const matchSec = !filters.secretaria || inv.secretaria.toLowerCase().includes(filters.secretaria.toLowerCase());
+      const filterSec = filters.secretaria.trim().toLowerCase();
+      const invoiceSec = inv.secretaria.trim().toLowerCase();
+      const matchSec = !filters.secretaria || invoiceSec === filterSec;
       const matchForn = !filters.fornecedor || inv.fornecedor.toLowerCase().includes(filters.fornecedor.toLowerCase());
       const matchSit = !filters.situacao || inv.situacao === filters.situacao;
       const invoiceDate = inv.vcto;
@@ -124,12 +155,13 @@ const App: React.FC = () => {
   }, [invoices, filters]);
 
   const stats = useMemo(() => {
-    const totalAberto = invoices.filter(i => i.situacao === Situacao.NAO_PAGO).reduce((s, i) => s + i.valor, 0);
-    const totalPago = invoices.filter(i => i.situacao === Situacao.PAGO).reduce((s, i) => s + i.valor, 0);
+    const activeInvoices = invoices.filter(i => i.situacao !== Situacao.CANCELADO);
+    const totalAberto = activeInvoices.filter(i => i.situacao === Situacao.NAO_PAGO).reduce((s, i) => s + i.valor, 0);
+    const totalPago = activeInvoices.filter(i => i.situacao === Situacao.PAGO).reduce((s, i) => s + i.valor, 0);
     return { totalAberto, totalPago };
   }, [invoices]);
 
-  const handleSaveManual = async (invoiceData: Invoice) => {
+  const handleSaveManual = useCallback(async (invoiceData: Invoice) => {
     const isEdit = invoices.some(i => i.id === invoiceData.id);
     const history: HistoryEntry = {
       id: generateId(), date: new Date().toISOString(),
@@ -144,9 +176,9 @@ const App: React.FC = () => {
       setEditingInvoice(null); setAiInsight('');
       addToast('Salvo com sucesso.', 'success');
     } catch (err) { addToast('Erro ao salvar.', 'error'); }
-  };
+  }, [invoices, currentUser, addToast]);
 
-  const handleImport = async (newInvoices: Invoice[]) => {
+  const handleImport = useCallback(async (newInvoices: Invoice[]) => {
     const updatedWithHistory = newInvoices.map(inv => ({
       ...inv, history: [{ id: generateId(), date: new Date().toISOString(), description: 'Importado via IA.', user: currentUser?.name || 'Sistema' }]
     }));
@@ -155,9 +187,9 @@ const App: React.FC = () => {
       setInvoices(prev => [...updatedWithHistory, ...prev]);
       setAiInsight(''); addToast('Importação concluída.', 'success');
     } catch (err) { addToast('Erro na importação.', 'error'); }
-  };
+  }, [currentUser, addToast]);
 
-  const handleDeleteInvoice = async (id: string) => {
+  const handleDeleteInvoice = useCallback(async (id: string) => {
     if (confirm("Excluir permanentemente?")) {
       try {
         await dataService.deleteInvoice(id);
@@ -166,45 +198,71 @@ const App: React.FC = () => {
         setAiInsight(''); addToast('Removido.', 'success');
       } catch (err) { addToast('Erro ao deletar.', 'error'); }
     }
-  };
+  }, [selectedInvoice, addToast]);
 
-  const handleToggleStatus = async (id: string) => {
-    const inv = invoices.find(i => i.id === id);
-    if (!inv) return;
-    const isNowPago = inv.situacao === Situacao.NAO_PAGO;
-    const historyEntry: HistoryEntry = {
-      id: generateId(), date: new Date().toISOString(),
-      description: `Alteração para ${isNowPago ? 'PAGO' : 'NÃO PAGO'}.`,
-      user: currentUser?.name || 'Sistema'
-    };
-    const updatedInv = { ...inv, situacao: isNowPago ? Situacao.PAGO : Situacao.NAO_PAGO, pgto: isNowPago ? new Date().toISOString().split('T')[0] : null, history: [...(inv.history || []), historyEntry] };
+  // Fix: Added handleSaveUser callback to handle user creation/updates
+  const handleSaveUser = useCallback(async (userData: User) => {
     try {
-      await dataService.saveInvoice(updatedInv);
-      setInvoices(prev => prev.map(i => i.id === id ? updatedInv : i));
-      if (selectedInvoice?.id === id) setSelectedInvoice(updatedInv);
-      setAiInsight(''); addToast('Status atualizado.', 'info');
-    } catch (err) { addToast('Erro ao atualizar status.', 'error'); }
-  };
+      await dataService.saveUser(userData);
+      setUsers(prev => {
+        const exists = prev.some(u => u.id === userData.id);
+        if (exists) return prev.map(u => u.id === userData.id ? userData : u);
+        return [...prev, userData];
+      });
+      setIsUserModalOpen(false);
+      setEditingUser(null);
+      addToast('Usuário salvo com sucesso.', 'success');
+    } catch (err) {
+      addToast('Erro ao salvar usuário.', 'error');
+    }
+  }, [addToast]);
 
-  const handleSaveUser = async (user: User) => {
-    try {
-      await dataService.saveUser(user);
-      const refreshedUsers = await dataService.getUsers(); setUsers(refreshedUsers);
-      setIsUserModalOpen(false); setEditingUser(null);
-      addToast('Usuário salvo.', 'success');
-    } catch (err) { addToast('Erro ao salvar usuário.', 'error'); }
-  };
-
-  const handleDeleteUser = async (id: string) => {
-    if (id === currentUser?.id) { addToast('Você não pode se remover.', 'warning'); return; }
-    if (confirm("Remover usuário?")) {
+  // Fix: Added handleDeleteUser callback to handle user deletion
+  const handleDeleteUser = useCallback(async (id: string) => {
+    if (id === currentUser?.id) {
+      addToast('Você não pode excluir seu próprio usuário.', 'warning');
+      return;
+    }
+    if (confirm("Excluir este usuário permanentemente?")) {
       try {
         await dataService.deleteUser(id);
         setUsers(prev => prev.filter(u => u.id !== id));
         addToast('Usuário removido.', 'success');
-      } catch (err) { addToast('Erro ao remover.', 'error'); }
+      } catch (err) {
+        addToast('Erro ao deletar usuário.', 'error');
+      }
     }
-  };
+  }, [currentUser, addToast]);
+
+  const handleToggleStatus = useCallback(async (id: string) => {
+    setInvoices(prevInvoices => {
+      const inv = prevInvoices.find(i => i.id === id);
+      if (!inv || inv.situacao === Situacao.CANCELADO) return prevInvoices;
+      
+      const isNowPago = inv.situacao === Situacao.NAO_PAGO;
+      const historyEntry: HistoryEntry = {
+        id: generateId(), date: new Date().toISOString(),
+        description: `Alteração para ${isNowPago ? 'PAGO' : 'NÃO PAGO'}.`,
+        user: currentUser?.name || 'Sistema'
+      };
+      
+      const updatedInv = { ...inv, situacao: isNowPago ? Situacao.PAGO : Situacao.NAO_PAGO, pgto: isNowPago ? new Date().toISOString().split('T')[0] : null, history: [...(inv.history || []), historyEntry] };
+      
+      dataService.saveInvoice(updatedInv).catch(() => addToast('Erro ao sincronizar status.', 'error'));
+      
+      return prevInvoices.map(i => i.id === id ? updatedInv : i);
+    });
+    setAiInsight('');
+  }, [currentUser, addToast]);
+
+  const handleSelectInvoice = useCallback((invoice: Invoice) => {
+    setSelectedInvoice(invoice);
+  }, []);
+
+  const handleEditInvoice = useCallback((invoice: Invoice) => {
+    setEditingInvoice(invoice);
+    setIsManualModalOpen(true);
+  }, []);
 
   if (!isAuthenticated) return <LoginView onLogin={handleLogin} error={authError} isLoading={isAuthLoading} />;
   if (isLoadingData) return (
@@ -225,11 +283,10 @@ const App: React.FC = () => {
              <div className="h-4 w-1 bg-indigo-600 rounded-full"></div>
              <h2 className="text-sm font-bold text-slate-900 tracking-tight uppercase flex items-center gap-2">
                {currentView === 'dashboard' ? 'Analytics' : currentView === 'invoices' ? 'Notas Fiscais' : currentView === 'users' ? 'Usuários' : 'Logs de Sistema'}
-               {isSupabaseConfigured && <span className="ml-2 bg-emerald-100 text-emerald-700 text-[9px] px-1.5 py-0.5 rounded-full font-black border border-emerald-200">CONECTADO</span>}
              </h2>
           </div>
           <div className="flex items-center gap-4">
-            <NotificationDropdown invoices={invoices} onSelectInvoice={setSelectedInvoice} />
+            <NotificationDropdown invoices={invoices} onSelectInvoice={handleSelectInvoice} />
             <div className="h-8 w-[1px] bg-slate-100 mx-2"></div>
             <div className="flex gap-2">
               {currentView === 'invoices' && (
@@ -257,23 +314,96 @@ const App: React.FC = () => {
                   <div className="prose prose-invert max-w-none text-indigo-100 text-sm leading-relaxed whitespace-pre-wrap">{aiInsight || "Aguardando análise de dados..."}</div>
                 </div>
               </div>
-              <DashboardView invoices={invoices} />
+              <DashboardView invoices={invoices.filter(i => i.situacao !== Situacao.CANCELADO)} />
             </div>
           )}
           {currentView === 'invoices' && (
             <div className="animate-in fade-in duration-500">
-              <section className="mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 no-print">
-                <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                  <input placeholder="Secretaria..." className="w-full p-2.5 border border-slate-200 rounded-xl text-sm" value={filters.secretaria} onChange={(e) => setFilters({...filters, secretaria: e.target.value})} />
-                  <input placeholder="Fornecedor..." className="w-full p-2.5 border border-slate-200 rounded-xl text-sm" value={filters.fornecedor} onChange={(e) => setFilters({...filters, fornecedor: e.target.value})} />
-                  <select className="w-full p-2.5 border border-slate-200 rounded-xl text-sm" value={filters.situacao} onChange={(e) => setFilters({...filters, situacao: e.target.value})}>
-                    <option value="">Todas</option><option value={Situacao.PAGO}>PAGO</option><option value={Situacao.NAO_PAGO}>NÃO PAGO</option>
-                  </select>
-                  <input type="date" className="w-full p-2.5 border border-slate-200 rounded-xl text-sm" value={filters.startDate} onChange={(e) => setFilters({...filters, startDate: e.target.value})} />
-                  <input type="date" className="w-full p-2.5 border border-slate-200 rounded-xl text-sm" value={filters.endDate} onChange={(e) => setFilters({...filters, endDate: e.target.value})} />
+              <section className="mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 no-print space-y-6">
+                <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+                  <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Painel de Filtros Avançados</h3>
+                  <button onClick={() => setFilters({ secretaria: '', fornecedor: '', situacao: '', startDate: '', endDate: '' })} className="text-[10px] text-indigo-600 font-bold uppercase hover:underline">Limpar Filtros</button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                  <div className="relative lg:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Secretaria (Nome Exato)</label>
+                    <input 
+                      list="secretarias-list"
+                      placeholder="Selecione ou digite..." 
+                      className={`w-full p-2.5 border rounded-xl text-sm font-bold text-slate-900 outline-none transition-all ${
+                        filters.secretaria ? 'border-indigo-400 bg-indigo-50/10' : 'border-slate-200 bg-white'
+                      }`} 
+                      value={filters.secretaria} 
+                      onChange={(e) => setFilters(prev => ({...prev, secretaria: e.target.value}))} 
+                    />
+                    <datalist id="secretarias-list">
+                      {uniqueSecretarias.map(sec => <option key={sec} value={sec} />)}
+                    </datalist>
+                  </div>
+
+                  <div className="relative lg:col-span-2">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Fornecedor (Busca Parcial)</label>
+                    <input 
+                      placeholder="Nome do fornecedor..." 
+                      className="w-full p-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/10" 
+                      value={filters.fornecedor} 
+                      onChange={(e) => setFilters(prev => ({...prev, fornecedor: e.target.value}))} 
+                    />
+                  </div>
+                  
+                  <div className="lg:col-span-1">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Situação</label>
+                    <select 
+                      className="w-full p-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/10" 
+                      value={filters.situacao} 
+                      onChange={(e) => setFilters(prev => ({...prev, situacao: e.target.value}))}
+                    >
+                      <option value="">Todas</option>
+                      <option value={Situacao.PAGO}>PAGO</option>
+                      <option value={Situacao.NAO_PAGO}>NÃO PAGO</option>
+                      <option value={Situacao.CANCELADO}>CANCELADO</option>
+                    </select>
+                  </div>
+
+                  <div className="lg:col-span-1">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Mês Referência</label>
+                    <select 
+                      className="w-full p-2.5 border border-indigo-200 bg-indigo-50/30 text-indigo-700 font-black rounded-xl text-sm outline-none focus:ring-4 focus:ring-indigo-500/10" 
+                      onChange={(e) => handleMonthSelect(e.target.value)}
+                    >
+                      <option value="">Customizado...</option>
+                      {availableMonths.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="md:col-span-2 lg:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Início do Período</label>
+                    <input 
+                      type="date" 
+                      className="w-full p-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/10" 
+                      value={filters.startDate} 
+                      onChange={(e) => setFilters(prev => ({...prev, startDate: e.target.value}))} 
+                    />
+                  </div>
+                  <div className="md:col-span-2 lg:col-span-3">
+                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Fim do Período</label>
+                    <input 
+                      type="date" 
+                      className="w-full p-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/10" 
+                      value={filters.endDate} 
+                      onChange={(e) => setFilters(prev => ({...prev, endDate: e.target.value}))} 
+                    />
+                  </div>
                 </div>
               </section>
-              <InvoiceTable invoices={filteredInvoices} onDelete={handleDeleteInvoice} onToggleStatus={handleToggleStatus} onSelectInvoice={setSelectedInvoice} onEditInvoice={(inv) => { setEditingInvoice(inv); setIsManualModalOpen(true); }} />
+              <InvoiceTable 
+                invoices={filteredInvoices} 
+                onDelete={handleDeleteInvoice} 
+                onToggleStatus={handleToggleStatus} 
+                onSelectInvoice={handleSelectInvoice} 
+                onEditInvoice={handleEditInvoice} 
+              />
             </div>
           )}
           {currentView === 'users' && <UserManagementView users={users} onAddUser={() => { setEditingUser(null); setIsUserModalOpen(true); }} onEditUser={(u) => { setEditingUser(u); setIsUserModalOpen(true); }} onDeleteUser={handleDeleteUser} currentUser={currentUser} />}

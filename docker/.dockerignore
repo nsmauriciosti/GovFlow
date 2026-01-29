@@ -7,3 +7,4 @@ docker/
 README.md
 docker-compose.yml
 .gitignore
+npm-debug.log

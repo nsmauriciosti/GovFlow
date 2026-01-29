@@ -1,7 +1,8 @@
 
 export enum Situacao {
   PAGO = 'PAGO',
-  NAO_PAGO = 'NÃO PAGO'
+  NAO_PAGO = 'NÃO PAGO',
+  CANCELADO = 'CANCELADO'
 }
 
 export enum UserRole {
