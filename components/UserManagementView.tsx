@@ -8,6 +8,8 @@ interface UserManagementViewProps {
   onEditUser: (user: User) => void;
   onDeleteUser: (id: string) => void;
   currentUser: User | null;
+  // Added theme prop to fix TypeScript error in App.tsx
+  theme: 'light' | 'dark';
 }
 
 const UserRow = React.memo(({ 
@@ -77,7 +79,7 @@ const UserRow = React.memo(({
   </tr>
 ));
 
-const UserManagementView: React.FC<UserManagementViewProps> = ({ users, onAddUser, onEditUser, onDeleteUser, currentUser }) => {
+const UserManagementView: React.FC<UserManagementViewProps> = ({ users, onAddUser, onEditUser, onDeleteUser, currentUser, theme }) => {
   const isAdmin = currentUser?.role === UserRole.ADMIN;
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 10;
@@ -93,11 +95,11 @@ const UserManagementView: React.FC<UserManagementViewProps> = ({ users, onAddUse
   }, [users, currentPage]);
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className={`animate-in fade-in slide-in-from-bottom-4 duration-500 ${theme === 'dark' ? 'dark' : ''}`}>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Gestão de Usuários</h2>
-          <p className="text-slate-500 text-sm mt-1">Controle de acessos e permissões do sistema governamental.</p>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Gestão de Usuários</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Controle de acessos e permissões do sistema governamental.</p>
         </div>
         
         {isAdmin && (
@@ -111,19 +113,19 @@ const UserManagementView: React.FC<UserManagementViewProps> = ({ users, onAddUse
         )}
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden flex flex-col">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden flex flex-col">
         <div className="overflow-x-auto">
           <table className="w-full text-left">
             <thead>
-              <tr className="bg-slate-50 border-b border-slate-100">
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Usuário</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Nível de Acesso</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Status</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Último Acesso</th>
-                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest text-center">Ações</th>
+              <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-800">
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Usuário</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Nível de Acesso</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Status</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Último Acesso</th>
+                <th className="px-6 py-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest text-center">Ações</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
               {paginatedUsers.map((user) => (
                 <UserRow 
                   key={user.id} 
@@ -140,22 +142,22 @@ const UserManagementView: React.FC<UserManagementViewProps> = ({ users, onAddUse
 
         {/* Pagination Controls */}
         {totalPages > 1 && (
-          <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-between items-center">
-            <p className="text-xs text-slate-500 font-medium">
-              Página <span className="text-indigo-600 font-bold">{currentPage}</span> de <span className="text-slate-900 font-bold">{totalPages}</span>
+          <div className="px-6 py-4 bg-slate-50 dark:bg-slate-800 border-t border-slate-100 dark:border-slate-800 flex justify-between items-center">
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+              Página <span className="text-indigo-600 dark:text-indigo-400 font-bold">{currentPage}</span> de <span className="text-slate-900 dark:text-slate-100 font-bold">{totalPages}</span>
             </p>
             <div className="flex gap-2">
               <button 
                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                 disabled={currentPage === 1}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-white disabled:opacity-40 transition-all"
+                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700 disabled:opacity-40 transition-all"
               >
                 Anterior
               </button>
               <button 
                 onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                 disabled={currentPage === totalPages}
-                className="px-3 py-1.5 rounded-lg border border-slate-200 text-xs font-bold text-slate-600 hover:bg-white disabled:opacity-40 transition-all"
+                className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-white dark:hover:bg-slate-700 disabled:opacity-40 transition-all"
               >
                 Próxima
               </button>

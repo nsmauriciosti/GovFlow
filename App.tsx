@@ -25,6 +25,9 @@ const App: React.FC = () => {
   const [currentUser, setCurrentUser] = useState<User | null>(null);
   const [authError, setAuthError] = useState<string | undefined>();
   const [isAuthLoading, setIsAuthLoading] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    return (localStorage.getItem('govflow_theme') as 'light' | 'dark') || 'light';
+  });
 
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
@@ -40,6 +43,20 @@ const App: React.FC = () => {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  // Sincroniza o tema com o elemento raiz do HTML
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('govflow_theme', theme);
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  }, []);
 
   const addToast = useCallback((message: string, type: ToastType = 'info') => {
     const id = generateId();
@@ -253,53 +270,61 @@ const App: React.FC = () => {
 
   const canWrite = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.FINANCEIRO || currentUser?.role === UserRole.GESTOR;
 
-  if (!isAuthenticated) return <LoginView onLogin={handleLogin} error={authError} isLoading={isAuthLoading} systemName={systemName} systemSlogan={systemSlogan} footerText={footerText} />;
+  if (!isAuthenticated) return <LoginView onLogin={handleLogin} error={authError} isLoading={isAuthLoading} systemName={systemName} systemSlogan={systemSlogan} footerText={footerText} theme={theme} />;
   
   if (isLoadingData) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+    <div className={`min-h-screen ${theme === 'dark' ? 'bg-slate-950 text-slate-100' : 'bg-slate-50 text-slate-900'} flex items-center justify-center transition-colors duration-300`}>
       <div className="text-center">
         <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-600 border-t-transparent mx-auto mb-4"></div>
-        <p className="text-slate-600 font-bold">Sincronizando Dados...</p>
+        <p className="font-bold">Sincronizando Dados...</p>
       </div>
     </div>
   );
 
   return (
-    <div className="flex min-h-screen bg-slate-50/50">
-      <Sidebar currentView={currentView} onNavigate={setCurrentView} currentUser={currentUser} onLogout={handleLogout} systemName={systemName} />
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
+      <Sidebar 
+        currentView={currentView} 
+        onNavigate={setCurrentView} 
+        currentUser={currentUser} 
+        onLogout={handleLogout} 
+        systemName={systemName}
+        theme={theme}
+        onToggleTheme={toggleTheme}
+      />
       <div className="flex-1 flex flex-col min-w-0">
-        <header className="bg-white/80 backdrop-blur-md border-b border-slate-100 py-4 px-8 sticky top-0 z-40 no-print flex justify-between items-center shadow-sm">
+        <header className="bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-100 dark:border-slate-800 py-4 px-8 sticky top-0 z-40 no-print flex justify-between items-center shadow-sm transition-colors">
           <div className="flex items-center gap-3">
              <div className="h-4 w-1 bg-indigo-600 rounded-full"></div>
-             <h2 className="text-sm font-bold text-slate-900 tracking-tight uppercase flex items-center gap-2">
+             <h2 className="text-sm font-bold tracking-tight uppercase flex items-center gap-2">
                {currentView === 'dashboard' ? 'Analytics' : currentView === 'invoices' ? 'Notas Fiscais' : currentView === 'users' ? 'Usuários' : currentView === 'settings' ? 'Configurações' : currentView === 'profile' ? 'Meu Cadastro' : 'Logs de Sistema'}
              </h2>
           </div>
           <div className="flex items-center gap-4">
-            <NotificationDropdown invoices={invoices} onSelectInvoice={setSelectedInvoice} />
-            <div className="h-8 w-[1px] bg-slate-100 mx-2"></div>
+            <NotificationDropdown invoices={invoices} onSelectInvoice={setSelectedInvoice} theme={theme} />
+            <div className="h-8 w-[1px] bg-slate-100 dark:bg-slate-800 mx-2"></div>
             <div className="flex gap-2">
               {currentView === 'invoices' && canWrite && (
                 <>
-                  <button onClick={() => { setEditingInvoice(null); setIsManualModalOpen(true); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2">Novo Registro</button>
+                  <button onClick={() => { setEditingInvoice(null); setIsManualModalOpen(true); }} className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2">Novo Registro</button>
                   <button onClick={() => setIsImportModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20">Importar IA</button>
                 </>
               )}
               {currentView === 'invoices' && !canWrite && (
-                <div className="text-[10px] font-black text-slate-400 uppercase border border-slate-200 px-3 py-2 rounded-xl">Modo Consulta Ativo</div>
+                <div className="text-[10px] font-black text-slate-400 uppercase border border-slate-200 dark:border-slate-800 px-3 py-2 rounded-xl">Modo Consulta Ativo</div>
               )}
             </div>
           </div>
         </header>
 
-        <main className="p-8">
+        <main className="p-8 flex-1">
           {currentView === 'dashboard' && (
             <div className="animate-in fade-in duration-500">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <KpiCard title="Total em Aberto" value={formatCurrency(stats.totalAberto)} icon={<svg className="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} colorClass="bg-rose-50" />
-                <KpiCard title="Total Liquidado" value={formatCurrency(stats.totalPago)} icon={<svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} colorClass="bg-emerald-50" />
-                <KpiCard title="Total de Registros" value={invoices.length.toString()} icon={<svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5" /></svg>} colorClass="bg-blue-50" />
-                <KpiCard title="Pendências Críticas" value={invoices.filter(i => i.situacao === Situacao.NAO_PAGO && !i.pgto).length.toString()} icon={<svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01" /></svg>} colorClass="bg-amber-50" />
+                <KpiCard title="Total em Aberto" value={formatCurrency(stats.totalAberto)} icon={<svg className="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} colorClass="bg-rose-50 dark:bg-rose-950/30" />
+                <KpiCard title="Total Liquidado" value={formatCurrency(stats.totalPago)} icon={<svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>} colorClass="bg-emerald-50 dark:bg-emerald-950/30" />
+                <KpiCard title="Total de Registros" value={invoices.length.toString()} icon={<svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5" /></svg>} colorClass="bg-blue-50 dark:bg-blue-950/30" />
+                <KpiCard title="Pendências Críticas" value={invoices.filter(i => i.situacao === Situacao.NAO_PAGO && !i.pgto).length.toString()} icon={<svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01" /></svg>} colorClass="bg-amber-50 dark:bg-amber-950/30" />
               </div>
               <div className="mt-8 bg-indigo-900 rounded-[2rem] p-8 text-white relative overflow-hidden shadow-2xl">
                 <div className="relative z-10">
@@ -307,41 +332,41 @@ const App: React.FC = () => {
                   <div className="prose prose-invert max-w-none text-indigo-100 text-sm leading-relaxed whitespace-pre-wrap">{aiInsight || "Aguardando análise de dados..."}</div>
                 </div>
               </div>
-              <DashboardView invoices={invoices.filter(i => i.situacao !== Situacao.CANCELADO)} />
+              <DashboardView invoices={invoices.filter(i => i.situacao !== Situacao.CANCELADO)} theme={theme} />
             </div>
           )}
           {currentView === 'invoices' && (
             <div className="animate-in fade-in duration-500">
-              <section className="mb-8 bg-white p-6 rounded-2xl shadow-sm border border-slate-100 no-print space-y-6">
+              <section className="mb-8 bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 no-print space-y-6 transition-colors">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                   <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest">Painel de Filtros Avançados</h3>
-                  <button onClick={() => setFilters({ secretaria: '', fornecedor: '', situacao: '', startDate: '', endDate: '' })} className="text-[10px] text-indigo-600 font-bold uppercase hover:underline">Limpar Filtros</button>
+                  <button onClick={() => setFilters({ secretaria: '', fornecedor: '', situacao: '', startDate: '', endDate: '' })} className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase hover:underline">Limpar Filtros</button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-6 gap-4">
                   <div className="relative lg:col-span-2">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Secretaria (Nome Exato)</label>
+                    <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1.5 ml-1">Secretaria (Nome Exato)</label>
                     <input 
                       placeholder="Busca por secretaria..." 
-                      className={`w-full p-2.5 border rounded-xl text-sm font-bold text-slate-900 outline-none transition-all ${
-                        filters.secretaria ? 'border-indigo-400 bg-indigo-50/10' : 'border-slate-200 bg-white'
+                      className={`w-full p-2.5 border rounded-xl text-sm font-bold text-slate-900 dark:text-slate-100 outline-none transition-all ${
+                        filters.secretaria ? 'border-indigo-400 bg-indigo-50/10 dark:bg-indigo-900/10' : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800'
                       }`} 
                       value={filters.secretaria} 
                       onChange={(e) => setFilters(prev => ({...prev, secretaria: e.target.value}))} 
                     />
                   </div>
                   <div className="relative lg:col-span-2">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Fornecedor (Busca Parcial)</label>
+                    <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1.5 ml-1">Fornecedor (Busca Parcial)</label>
                     <input 
                       placeholder="Nome do fornecedor..." 
-                      className="w-full p-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/10" 
+                      className="w-full p-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/10" 
                       value={filters.fornecedor} 
                       onChange={(e) => setFilters(prev => ({...prev, fornecedor: e.target.value}))} 
                     />
                   </div>
                   <div className="lg:col-span-2">
-                    <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Situação</label>
+                    <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase mb-1.5 ml-1">Situação</label>
                     <select 
-                      className="w-full p-2.5 border border-slate-200 bg-white rounded-xl text-sm font-bold text-slate-900 outline-none focus:ring-2 focus:ring-indigo-500/10" 
+                      className="w-full p-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/10" 
                       value={filters.situacao} 
                       onChange={(e) => setFilters(prev => ({...prev, situacao: e.target.value}))}
                     >
@@ -360,20 +385,21 @@ const App: React.FC = () => {
                 onSelectInvoice={setSelectedInvoice} 
                 onEditInvoice={(inv) => { setEditingInvoice(inv); setIsManualModalOpen(true); }}
                 currentUser={currentUser}
+                theme={theme}
               />
             </div>
           )}
-          {currentView === 'users' && <UserManagementView users={users} onAddUser={() => { setEditingUser(null); setIsUserModalOpen(true); }} onEditUser={(u) => { setEditingUser(u); setIsUserModalOpen(true); }} onDeleteUser={handleDeleteUser} currentUser={currentUser} />}
-          {currentView === 'logs' && <ErrorLogsView />}
-          {currentView === 'settings' && <SettingsView settings={settings} onSave={handleSaveSettings} />}
-          {currentView === 'profile' && currentUser && <ProfileView user={currentUser} onSave={handleSaveUser} onToast={addToast} />}
+          {currentView === 'users' && <UserManagementView users={users} onAddUser={() => { setEditingUser(null); setIsUserModalOpen(true); }} onEditUser={(u) => { setEditingUser(u); setIsUserModalOpen(true); }} onDeleteUser={handleDeleteUser} currentUser={currentUser} theme={theme} />}
+          {currentView === 'logs' && <ErrorLogsView theme={theme} />}
+          {currentView === 'settings' && <SettingsView settings={settings} onSave={handleSaveSettings} theme={theme} />}
+          {currentView === 'profile' && currentUser && <ProfileView user={currentUser} onSave={handleSaveUser} onToast={addToast} theme={theme} />}
         </main>
       </div>
       <Toast toasts={toasts} onRemove={removeToast} />
-      {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onImport={handleImport} onToast={addToast} userEmail={currentUser?.email || 'Sistema'} />}
-      {isManualModalOpen && <ManualEntryModal invoice={editingInvoice} onClose={() => { setIsManualModalOpen(false); setEditingInvoice(null); }} onSave={handleSaveManual} onToast={addToast} />}
-      {isUserModalOpen && <UserModal user={editingUser} onClose={() => { setIsUserModalOpen(false); setEditingUser(null); }} onSave={handleSaveUser} onToast={addToast} />}
-      <InvoiceDetailsPanel invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} />
+      {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onImport={handleImport} onToast={addToast} userEmail={currentUser?.email || 'Sistema'} theme={theme} />}
+      {isManualModalOpen && <ManualEntryModal invoice={editingInvoice} onClose={() => { setIsManualModalOpen(false); setEditingInvoice(null); }} onSave={handleSaveManual} onToast={addToast} theme={theme} />}
+      {isUserModalOpen && <UserModal user={editingUser} onClose={() => { setIsUserModalOpen(false); setEditingUser(null); }} onSave={handleSaveUser} onToast={addToast} theme={theme} />}
+      <InvoiceDetailsPanel invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} theme={theme} />
     </div>
   );
 };

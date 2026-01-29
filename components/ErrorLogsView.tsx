@@ -4,7 +4,12 @@ import { ImportErrorLog } from '../types';
 import { dataService } from '../services/dataService';
 import { formatDateBR } from '../utils';
 
-const ErrorLogsView: React.FC = () => {
+// Added interface to fix TypeScript error in App.tsx
+interface ErrorLogsViewProps {
+  theme: 'light' | 'dark';
+}
+
+const ErrorLogsView: React.FC<ErrorLogsViewProps> = ({ theme }) => {
   const [logs, setLogs] = useState<ImportErrorLog[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,17 +41,17 @@ const ErrorLogsView: React.FC = () => {
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className={`animate-in fade-in slide-in-from-bottom-4 duration-500 ${theme === 'dark' ? 'dark' : ''}`}>
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Logs de Erros de Importação</h2>
-          <p className="text-slate-500 text-sm mt-1">Auditabilidade técnica dos arquivos processados pela IA.</p>
+          <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100 tracking-tight">Logs de Erros de Importação</h2>
+          <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Auditabilidade técnica dos arquivos processados pela IA.</p>
         </div>
         
         <div className="flex gap-3">
           <button 
             onClick={loadLogs}
-            className="px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50 transition-all flex items-center gap-2"
+            className="px-4 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-all flex items-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
             Atualizar
@@ -54,7 +59,7 @@ const ErrorLogsView: React.FC = () => {
           <button 
             onClick={clearLogs}
             disabled={logs.length === 0}
-            className="bg-rose-50 border border-rose-100 text-rose-600 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-rose-100 transition-all flex items-center gap-2 disabled:opacity-50"
+            className="bg-rose-50 dark:bg-rose-900/30 border border-rose-100 dark:border-rose-900 text-rose-600 dark:text-rose-400 px-4 py-2.5 rounded-xl text-xs font-bold hover:bg-rose-100 dark:hover:bg-rose-900/50 transition-all flex items-center gap-2 disabled:opacity-50"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
             Limpar Logs
@@ -62,38 +67,38 @@ const ErrorLogsView: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden">
         {loading ? (
           <div className="p-12 text-center">
             <div className="animate-spin rounded-full h-10 w-10 border-2 border-indigo-600 border-t-transparent mx-auto"></div>
           </div>
         ) : logs.length === 0 ? (
           <div className="p-20 text-center">
-             <div className="w-16 h-16 bg-emerald-50 text-emerald-500 rounded-full flex items-center justify-center mx-auto mb-4">
+             <div className="w-16 h-16 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-500 dark:text-emerald-400 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
              </div>
-             <p className="text-slate-400 font-bold">Nenhum erro registrado até o momento!</p>
+             <p className="text-slate-400 dark:text-slate-600 font-bold">Nenhum erro registrado até o momento!</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-slate-50 border-b border-slate-100">
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Data / Usuário</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Arquivo</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tipo</th>
-                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Detalhes do Erro</th>
+                <tr className="bg-slate-50 dark:bg-slate-800 border-b border-slate-100 dark:border-slate-800">
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Data / Usuário</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Arquivo</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Tipo</th>
+                  <th className="px-6 py-4 text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">Detalhes do Erro</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                 {logs.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50/50 transition-colors">
+                  <tr key={log.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
                     <td className="px-6 py-4">
-                      <p className="text-xs font-bold text-slate-900">{formatDateBR(log.date.split('T')[0])} <span className="text-slate-400 font-medium ml-1">{log.date.split('T')[1].slice(0, 5)}</span></p>
-                      <p className="text-[10px] text-slate-500 truncate mt-0.5">{log.userEmail}</p>
+                      <p className="text-xs font-bold text-slate-900 dark:text-slate-100">{formatDateBR(log.date.split('T')[0])} <span className="text-slate-400 dark:text-slate-500 font-medium ml-1">{log.date.split('T')[1].slice(0, 5)}</span></p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-500 truncate mt-0.5">{log.userEmail}</p>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-sm font-bold text-slate-700 truncate max-w-[150px]">{log.fileName}</p>
+                      <p className="text-sm font-bold text-slate-700 dark:text-slate-300 truncate max-w-[150px]">{log.fileName}</p>
                     </td>
                     <td className="px-6 py-4">
                       <span className={`text-[10px] font-black px-2 py-1 rounded border uppercase tracking-tight ${getBadgeStyle(log.errorType)}`}>
@@ -101,7 +106,7 @@ const ErrorLogsView: React.FC = () => {
                       </span>
                     </td>
                     <td className="px-6 py-4">
-                      <p className="text-xs text-slate-600 font-medium leading-relaxed italic max-w-sm line-clamp-2" title={log.details}>
+                      <p className="text-xs text-slate-600 dark:text-slate-400 font-medium leading-relaxed italic max-w-sm line-clamp-2" title={log.details}>
                         {log.details}
                       </p>
                     </td>

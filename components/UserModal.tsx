@@ -9,9 +9,11 @@ interface UserModalProps {
   onClose: () => void;
   onSave: (user: User) => void;
   onToast: (msg: string, type: ToastType) => void;
+  // Added theme prop to fix TypeScript error in App.tsx
+  theme: 'light' | 'dark';
 }
 
-const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, onToast }) => {
+const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, onToast, theme }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -63,11 +65,11 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, onToast })
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-200">
-        <div className="p-6 border-b border-slate-50 flex justify-between items-center bg-slate-50/50">
-          <h3 className="text-xl font-bold text-slate-900">{user ? 'Editar Usuário' : 'Novo Usuário'}</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors p-1 hover:bg-slate-200/50 rounded-full">
+    <div className="fixed inset-0 bg-slate-900/60 dark:bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-200">
+        <div className="p-6 border-b border-slate-50 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50 transition-colors">
+          <h3 className="text-xl font-bold text-slate-900 dark:text-slate-100">{user ? 'Editar Usuário' : 'Novo Usuário'}</h3>
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 transition-colors p-1 hover:bg-slate-200/50 dark:hover:bg-slate-700 rounded-full">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
         </div>
@@ -75,44 +77,44 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, onToast })
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           <div className="space-y-4">
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Nome Completo</label>
+              <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Nome Completo</label>
               <input 
                 required
                 type="text" 
                 placeholder="Ex: João da Silva"
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-sm text-slate-900 font-medium transition-all"
+                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-400/10 focus:border-indigo-500 outline-none text-sm text-slate-900 dark:text-slate-100 font-medium transition-all"
                 value={formData.name}
                 onChange={(e) => setFormData({...formData, name: e.target.value})}
               />
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">E-mail Corporativo</label>
+              <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 ml-1">E-mail Corporativo</label>
               <input 
                 required
                 type="email" 
                 placeholder="exemplo@gov.br"
-                className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-sm text-slate-900 font-medium transition-all"
+                className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-400/10 focus:border-indigo-500 outline-none text-sm text-slate-900 dark:text-slate-100 font-medium transition-all"
                 value={formData.email}
                 onChange={(e) => setFormData({...formData, email: e.target.value})}
               />
             </div>
 
             <div>
-              <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Senha de Acesso</label>
+              <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Senha de Acesso</label>
               <div className="relative">
                 <input 
                   required={!user}
                   type={showPassword ? "text" : "password"}
                   placeholder={user ? "Deixe em branco para manter" : "Mín. 8 caracteres, A-z, 0-9"}
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-sm text-slate-900 font-bold transition-all pr-12"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-400/10 focus:border-indigo-500 outline-none text-sm text-slate-900 dark:text-slate-100 font-bold transition-all pr-12"
                   value={formData.password}
                   onChange={(e) => setFormData({...formData, password: e.target.value})}
                 />
                 <button 
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-indigo-600 transition-colors"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                   aria-label={showPassword ? "Ocultar senha" : "Exibir senha"}
                   title={showPassword ? "Ocultar senha" : "Exibir senha"}
                 >
@@ -127,9 +129,9 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, onToast })
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Perfil</label>
+                <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Perfil</label>
                 <select 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-sm text-slate-900 font-bold transition-all"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-400/10 focus:border-indigo-500 outline-none text-sm text-slate-900 dark:text-slate-100 font-bold transition-all"
                   value={formData.role}
                   onChange={(e) => setFormData({...formData, role: e.target.value as UserRole})}
                 >
@@ -137,9 +139,9 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, onToast })
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Status</label>
+                <label className="block text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1.5 ml-1">Status</label>
                 <select 
-                  className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-sm text-slate-900 font-bold transition-all"
+                  className="w-full px-4 py-3 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-400/10 focus:border-indigo-500 outline-none text-sm text-slate-900 dark:text-slate-100 font-bold transition-all"
                   value={formData.status}
                   onChange={(e) => setFormData({...formData, status: e.target.value as any})}
                 >
@@ -154,13 +156,13 @@ const UserModal: React.FC<UserModalProps> = ({ user, onClose, onSave, onToast })
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-6 py-3 rounded-2xl text-slate-600 font-bold hover:bg-slate-100 transition-colors border border-slate-100"
+              className="flex-1 px-6 py-3 rounded-2xl text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors border border-slate-100 dark:border-slate-800"
             >
               Cancelar
             </button>
             <button
               type="submit"
-              className="flex-1 px-6 py-3 rounded-2xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-all shadow-lg active:scale-95"
+              className="flex-1 px-6 py-3 rounded-2xl bg-slate-900 dark:bg-indigo-600 text-white font-bold hover:bg-slate-800 dark:hover:bg-indigo-700 transition-all shadow-lg active:scale-95"
             >
               {user ? 'Salvar Alterações' : 'Criar Usuário'}
             </button>

@@ -12,6 +12,8 @@ interface ImportModalProps {
   onImport: (newInvoices: Invoice[]) => void;
   onToast: (msg: string, type: ToastType) => void;
   userEmail: string;
+  // Added theme prop to fix TypeScript error in App.tsx
+  theme: 'light' | 'dark';
 }
 
 interface ImportSummary {
@@ -21,7 +23,7 @@ interface ImportSummary {
   invoices: Invoice[];
 }
 
-const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, userEmail }) => {
+const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, userEmail, theme }) => {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState('');
@@ -203,11 +205,11 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
   if (summary) {
     return (
       <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300">
-          <div className="p-8 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+        <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-2xl overflow-hidden border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-300">
+          <div className="p-8 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50 flex justify-between items-center">
             <div>
-              <h3 className="text-2xl font-black text-slate-900 tracking-tight">Resumo do Processamento</h3>
-              <p className="text-sm text-slate-500 font-medium">Confira os resultados antes de salvar.</p>
+              <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Resumo do Processamento</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Confira os resultados antes de salvar.</p>
             </div>
             <div className="bg-indigo-600 text-white px-4 py-1 rounded-full text-xs font-black uppercase">
               {summary.totalInvoices} Itens Identificados
@@ -217,15 +219,15 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
           <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
             {summary.successFiles.length > 0 && (
               <section>
-                <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <h4 className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-emerald-500"></div>
                   Arquivos Processados ({summary.successFiles.length})
                 </h4>
                 <ul className="space-y-2">
                   {summary.successFiles.map((f, i) => (
-                    <li key={i} className="text-sm text-slate-600 bg-emerald-50/50 p-2 rounded-lg border border-emerald-100 flex justify-between">
+                    <li key={i} className="text-sm text-slate-600 dark:text-slate-300 bg-emerald-50/50 dark:bg-emerald-900/20 p-2 rounded-lg border border-emerald-100 dark:border-emerald-900 flex justify-between">
                       <span className="font-medium truncate">{f}</span>
-                      <span className="text-emerald-700 font-bold">OK</span>
+                      <span className="text-emerald-700 dark:text-emerald-400 font-bold">OK</span>
                     </li>
                   ))}
                 </ul>
@@ -234,18 +236,18 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
 
             {summary.errorFiles.length > 0 && (
               <section>
-                <h4 className="text-[10px] font-black text-rose-600 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <h4 className="text-[10px] font-black text-rose-600 dark:text-rose-400 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-rose-500"></div>
                   Falhas Detectadas ({summary.errorFiles.length})
                 </h4>
                 <ul className="space-y-2">
                   {summary.errorFiles.map((f, i) => (
-                    <li key={i} className="text-sm text-slate-600 bg-rose-50/50 p-3 rounded-lg border border-rose-100">
+                    <li key={i} className="text-sm text-slate-600 dark:text-slate-300 bg-rose-50/50 dark:bg-rose-900/20 p-3 rounded-lg border border-rose-100 dark:border-rose-900">
                       <div className="flex justify-between mb-1">
-                        <span className="font-bold text-rose-800">{f.name}</span>
-                        <span className="text-rose-600 text-[10px] font-black uppercase">Erro</span>
+                        <span className="font-bold text-rose-800 dark:text-rose-400">{f.name}</span>
+                        <span className="text-rose-600 dark:text-rose-500 text-[10px] font-black uppercase">Erro</span>
                       </div>
-                      <p className="text-xs text-rose-600/80 italic">{f.details}</p>
+                      <p className="text-xs text-rose-600/80 dark:text-rose-400/80 italic">{f.details}</p>
                     </li>
                   ))}
                 </ul>
@@ -254,13 +256,13 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
 
             {summary.totalInvoices === 0 && summary.errorFiles.length === 0 && (
               <div className="text-center py-8">
-                <p className="text-slate-500 font-medium">Nenhum dado foi extraído dos arquivos fornecidos.</p>
+                <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhum dado foi extraído dos arquivos fornecidos.</p>
               </div>
             )}
           </div>
 
-          <div className="p-8 border-t border-slate-100 flex justify-end gap-4 bg-slate-50/50">
-            <button onClick={onClose} className="px-8 py-3 rounded-2xl text-slate-600 font-bold hover:bg-slate-200 transition-all">Cancelar</button>
+          <div className="p-8 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-4 bg-slate-50/50 dark:bg-slate-800/50">
+            <button onClick={onClose} className="px-8 py-3 rounded-2xl text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">Cancelar</button>
             <button
               onClick={confirmImport}
               className="px-10 py-3 rounded-2xl bg-indigo-600 text-white font-black shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 transition-all active:scale-95"
@@ -272,7 +274,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
         <style>{`
           .custom-scrollbar::-webkit-scrollbar { width: 6px; }
           .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 10px; }
+          .custom-scrollbar::-webkit-scrollbar-thumb { background: ${theme === 'dark' ? '#334155' : '#e2e8f0'}; border-radius: 10px; }
         `}</style>
       </div>
     );
@@ -280,13 +282,13 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-3xl overflow-hidden border border-slate-100 animate-in zoom-in-95 duration-300">
-        <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+      <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl w-full max-w-3xl overflow-hidden border border-slate-100 dark:border-slate-800 animate-in zoom-in-95 duration-300">
+        <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
           <div>
-            <h3 className="text-2xl font-black text-slate-900 tracking-tight">Importação Inteligente</h3>
-            <p className="text-sm text-slate-500 font-medium">Os erros de processamento são registrados para auditoria.</p>
+            <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Importação Inteligente</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Os erros de processamento são registrados para auditoria.</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-200 rounded-full transition-all">
+          <button onClick={onClose} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-all">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
           </button>
         </div>
@@ -295,7 +297,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
           <div 
             onDragEnter={handleDrag} onDragLeave={handleDrag} onDragOver={handleDrag} onDrop={handleDrop}
             className={`relative border-2 border-dashed rounded-[2rem] p-12 text-center transition-all ${
-              dragActive ? 'border-indigo-500 bg-indigo-50/50' : 'border-slate-200 bg-slate-50/30 hover:bg-slate-50 hover:border-slate-300'
+              dragActive ? 'border-indigo-500 bg-indigo-50/50 dark:bg-indigo-900/20' : 'border-slate-200 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/30 hover:bg-slate-50 dark:hover:bg-slate-800 hover:border-slate-300 dark:hover:border-slate-600'
             }`}
           >
             <input 
@@ -303,30 +305,30 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
               onChange={(e) => e.target.files && processFiles(e.target.files)}
             />
             <div className="flex flex-col items-center gap-4">
-              <div className="w-16 h-16 bg-indigo-100 text-indigo-600 rounded-2xl flex items-center justify-center shadow-inner">
+              <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 rounded-2xl flex items-center justify-center shadow-inner">
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
               </div>
               <div>
-                <p className="text-lg font-bold text-slate-800">Arraste seus arquivos aqui</p>
-                <p className="text-sm text-slate-500 mt-1">XML, XLSX, XLS ou CSV</p>
+                <p className="text-lg font-bold text-slate-800 dark:text-slate-100">Arraste seus arquivos aqui</p>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">XML, XLSX, XLS ou CSV</p>
               </div>
               <button 
                 onClick={() => fileInputRef.current?.click()}
-                className="mt-2 px-6 py-2.5 bg-white border border-slate-200 text-slate-700 font-bold rounded-xl hover:shadow-md transition-all active:scale-95"
+                className="mt-2 px-6 py-2.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 font-bold rounded-xl hover:shadow-md transition-all active:scale-95"
               >
                 Selecionar Arquivos
               </button>
             </div>
 
             {loading && (
-              <div className="absolute inset-0 bg-white/95 backdrop-blur-md flex flex-col items-center justify-center rounded-[2rem] z-20 p-12">
+              <div className="absolute inset-0 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md flex flex-col items-center justify-center rounded-[2rem] z-20 p-12">
                 <div className="w-full max-w-md space-y-6 text-center">
                   <div className="space-y-2">
                     <div className="flex justify-between items-end mb-1">
-                      <p className="text-indigo-600 font-black text-xs uppercase tracking-widest text-left">{statusMessage}</p>
-                      <p className="text-indigo-600 font-black text-xs">{progress}%</p>
+                      <p className="text-indigo-600 dark:text-indigo-400 font-black text-xs uppercase tracking-widest text-left">{statusMessage}</p>
+                      <p className="text-indigo-600 dark:text-indigo-400 font-black text-xs">{progress}%</p>
                     </div>
-                    <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden shadow-inner p-0.5 border border-slate-200">
+                    <div className="h-3 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden shadow-inner p-0.5 border border-slate-200 dark:border-slate-700">
                       <div 
                         className="h-full bg-gradient-to-r from-indigo-500 to-indigo-700 rounded-full transition-all duration-500 ease-out shadow-[0_0_10px_rgba(79,70,229,0.4)]"
                         style={{ width: `${progress}%` }}
@@ -335,8 +337,8 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
                   </div>
                   
                   <div className="flex items-center justify-center gap-3">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 border-t-transparent"></div>
-                    <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Processando em tempo real</p>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 dark:border-indigo-400 border-t-transparent"></div>
+                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Processando em tempo real</p>
                   </div>
                 </div>
               </div>
@@ -344,21 +346,21 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
           </div>
 
           <div className="relative">
-            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100"></span></div>
-            <div className="relative flex justify-center text-xs uppercase font-black text-slate-400"><span className="bg-white px-4">OU COLE DADOS ABAIXO</span></div>
+            <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-slate-100 dark:border-slate-800"></span></div>
+            <div className="relative flex justify-center text-xs uppercase font-black text-slate-400 dark:text-slate-500"><span className="bg-white dark:bg-slate-900 px-4">OU COLE DADOS ABAIXO</span></div>
           </div>
 
           <textarea
             value={pastedText}
             onChange={(e) => setPastedText(e.target.value)}
             disabled={loading}
-            className="w-full h-32 p-4 border border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none text-sm font-medium text-slate-700 bg-slate-50/50 transition-all resize-none disabled:opacity-50"
+            className="w-full h-32 p-4 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-400/10 focus:border-indigo-500 outline-none text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-50/50 dark:bg-slate-800/50 transition-all resize-none disabled:opacity-50"
             placeholder="Cole aqui uma tabela ou texto descritivo..."
           />
         </div>
 
-        <div className="p-8 border-t border-slate-100 flex justify-end gap-4 bg-slate-50/50">
-          <button onClick={onClose} disabled={loading} className="px-8 py-3 rounded-2xl text-slate-600 font-bold hover:bg-slate-200 transition-all">Cancelar</button>
+        <div className="p-8 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-4 bg-slate-50/50 dark:bg-slate-800/50">
+          <button onClick={onClose} disabled={loading} className="px-8 py-3 rounded-2xl text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-200 dark:hover:bg-slate-700 transition-all">Cancelar</button>
           <button
             onClick={() => runAiParsing(pastedText, "Texto Copiado")}
             disabled={loading || !pastedText.trim()}

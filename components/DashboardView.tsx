@@ -9,12 +9,13 @@ import { formatCurrency } from '../utils';
 
 interface DashboardViewProps {
   invoices: Invoice[];
+  theme: 'light' | 'dark';
 }
 
 // Paleta moderna e leve: Indigo, Emerald, Cyan, Violet, Amber, Pink
 const COLORS = ['#6366f1', '#10b981', '#06b6d4', '#8b5cf6', '#f59e0b', '#ec4899'];
 
-const DashboardView: React.FC<DashboardViewProps> = ({ invoices }) => {
+const DashboardView: React.FC<DashboardViewProps> = ({ invoices, theme }) => {
   const stats = useMemo((): DashboardStats => {
     const totalAberto = invoices
       .filter(i => i.situacao === Situacao.NAO_PAGO)
@@ -52,34 +53,40 @@ const DashboardView: React.FC<DashboardViewProps> = ({ invoices }) => {
     return { totalAberto, totalPago, topFornecedores, distribuicaoSecretaria };
   }, [invoices]);
 
+  const textColor = theme === 'dark' ? '#94a3b8' : '#64748b';
+  const gridColor = theme === 'dark' ? '#1e293b' : '#f1f5f9';
+  const tooltipBg = theme === 'dark' ? '#0f172a' : '#ffffff';
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-      <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 transition-all hover:shadow-md">
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800 transition-all hover:shadow-md">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-1 h-6 bg-indigo-500 rounded-full"></div>
-          <h4 className="text-lg font-bold text-slate-800">Top 5 Fornecedores</h4>
+          <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100">Top 5 Fornecedores</h4>
         </div>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={stats.topFornecedores} layout="vertical" margin={{ left: 20, right: 30 }}>
-              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+              <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke={gridColor} />
               <XAxis type="number" hide />
               <YAxis 
                 dataKey="name" 
                 type="category" 
                 width={120} 
-                tick={{ fontSize: 11, fill: '#64748b', fontWeight: 600 }} 
+                tick={{ fontSize: 11, fill: textColor, fontWeight: 600 }} 
                 axisLine={false}
                 tickLine={false}
               />
               <Tooltip 
-                cursor={{ fill: '#f8fafc' }}
+                cursor={{ fill: theme === 'dark' ? '#1e293b' : '#f8fafc' }}
                 formatter={(value: number) => [formatCurrency(value), 'Volume Total']}
                 contentStyle={{ 
                   borderRadius: '16px', 
+                  backgroundColor: tooltipBg,
                   border: 'none', 
                   boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
-                  padding: '12px'
+                  padding: '12px',
+                  color: theme === 'dark' ? '#f1f5f9' : '#0f172a'
                 }}
               />
               <Bar 
@@ -93,10 +100,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ invoices }) => {
         </div>
       </div>
 
-      <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-slate-100 transition-all hover:shadow-md">
+      <div className="bg-white dark:bg-slate-900 p-6 rounded-[2rem] shadow-sm border border-slate-100 dark:border-slate-800 transition-all hover:shadow-md">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-1 h-6 bg-emerald-500 rounded-full"></div>
-          <h4 className="text-lg font-bold text-slate-800">Distribuição por Secretaria</h4>
+          <h4 className="text-lg font-bold text-slate-800 dark:text-slate-100">Distribuição por Secretaria</h4>
         </div>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -123,27 +130,29 @@ const DashboardView: React.FC<DashboardViewProps> = ({ invoices }) => {
                 formatter={(value: number) => formatCurrency(value)}
                 contentStyle={{ 
                   borderRadius: '16px', 
+                  backgroundColor: tooltipBg,
                   border: 'none', 
-                  boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)' 
+                  boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)',
+                  color: theme === 'dark' ? '#f1f5f9' : '#0f172a'
                 }}
               />
               <Legend 
                 verticalAlign="bottom" 
                 height={36} 
                 iconType="circle"
-                wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 600 }}
+                wrapperStyle={{ paddingTop: '20px', fontSize: '11px', fontWeight: 600, color: textColor }}
               />
             </PieChart>
           </ResponsiveContainer>
         </div>
         <div className="mt-6 grid grid-cols-2 gap-3">
           {stats.distribuicaoSecretaria.slice(0, 4).map((sec, idx) => (
-            <div key={idx} className="flex justify-between items-center text-[11px] p-2.5 bg-slate-50 rounded-xl border border-slate-100">
+            <div key={idx} className="flex justify-between items-center text-[11px] p-2.5 bg-slate-50 dark:bg-slate-800/50 rounded-xl border border-slate-100 dark:border-slate-800 transition-colors">
               <div className="flex items-center gap-2 overflow-hidden">
                 <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[idx % COLORS.length] }}></div>
-                <span className="text-slate-600 font-bold truncate">{sec.name}</span>
+                <span className="text-slate-600 dark:text-slate-400 font-bold truncate">{sec.name}</span>
               </div>
-              <span className="text-indigo-600 font-black ml-2">{sec.percentage.toFixed(1)}%</span>
+              <span className="text-indigo-600 dark:text-indigo-400 font-black ml-2">{sec.percentage.toFixed(1)}%</span>
             </div>
           ))}
         </div>
