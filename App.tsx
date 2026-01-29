@@ -251,6 +251,8 @@ const App: React.FC = () => {
     setAiInsight('');
   }, [currentUser, addToast]);
 
+  const canWrite = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.FINANCEIRO || currentUser?.role === UserRole.GESTOR;
+
   if (!isAuthenticated) return <LoginView onLogin={handleLogin} error={authError} isLoading={isAuthLoading} systemName={systemName} systemSlogan={systemSlogan} footerText={footerText} />;
   
   if (isLoadingData) return (
@@ -277,11 +279,14 @@ const App: React.FC = () => {
             <NotificationDropdown invoices={invoices} onSelectInvoice={setSelectedInvoice} />
             <div className="h-8 w-[1px] bg-slate-100 mx-2"></div>
             <div className="flex gap-2">
-              {currentView === 'invoices' && (
+              {currentView === 'invoices' && canWrite && (
                 <>
                   <button onClick={() => { setEditingInvoice(null); setIsManualModalOpen(true); }} className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2">Novo Registro</button>
                   <button onClick={() => setIsImportModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20">Importar IA</button>
                 </>
+              )}
+              {currentView === 'invoices' && !canWrite && (
+                <div className="text-[10px] font-black text-slate-400 uppercase border border-slate-200 px-3 py-2 rounded-xl">Modo Consulta Ativo</div>
               )}
             </div>
           </div>
@@ -353,7 +358,8 @@ const App: React.FC = () => {
                 onDelete={handleDeleteInvoice} 
                 onToggleStatus={handleToggleStatus} 
                 onSelectInvoice={setSelectedInvoice} 
-                onEditInvoice={(inv) => { setEditingInvoice(inv); setIsManualModalOpen(true); }} 
+                onEditInvoice={(inv) => { setEditingInvoice(inv); setIsManualModalOpen(true); }}
+                currentUser={currentUser}
               />
             </div>
           )}

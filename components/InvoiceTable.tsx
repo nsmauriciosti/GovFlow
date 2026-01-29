@@ -1,6 +1,6 @@
 
 import React, { useState, useMemo, useEffect, useTransition } from 'react';
-import { Invoice, Situacao } from '../types';
+import { Invoice, Situacao, User, UserRole } from '../types';
 import { formatCurrency, formatDateBR, getDaysUntil } from '../utils';
 
 interface InvoiceTableProps {
@@ -9,6 +9,7 @@ interface InvoiceTableProps {
   onToggleStatus: (id: string) => void;
   onSelectInvoice: (invoice: Invoice) => void;
   onEditInvoice: (invoice: Invoice) => void;
+  currentUser: User | null;
 }
 
 type SortField = 'secretaria' | 'fornecedor' | 'valor' | 'vcto';
@@ -19,13 +20,15 @@ const InvoiceRow = React.memo(({
   onDelete, 
   onToggleStatus, 
   onSelectInvoice,
-  onEditInvoice
+  onEditInvoice,
+  canWrite
 }: { 
   invoice: Invoice; 
   onDelete: (id: string) => void; 
   onToggleStatus: (id: string) => void; 
   onSelectInvoice: (invoice: Invoice) => void;
   onEditInvoice: (invoice: Invoice) => void;
+  canWrite: boolean;
 }) => {
   const isPendencia = invoice.situacao === Situacao.NAO_PAGO && !invoice.pgto;
   const isCancelado = invoice.situacao === Situacao.CANCELADO;
@@ -68,7 +71,7 @@ const InvoiceRow = React.memo(({
       onClick={() => onSelectInvoice(invoice)}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        onEditInvoice(invoice);
+        if (canWrite) onEditInvoice(invoice);
       }}
     >
       <td className={`p-4 text-sm font-medium border-b border-slate-100 ${isCancelado ? 'text-slate-400' : 'text-slate-700'}`}>{invoice.secretaria}</td>
@@ -102,12 +105,27 @@ const InvoiceRow = React.memo(({
       </td>
       <td className="p-4 border-b border-slate-100" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-center gap-2">
-          <button onClick={() => onToggleStatus(invoice.id)} disabled={isCancelado} className={`p-1.5 rounded-lg transition-all ${isCancelado ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 focus:ring-2 focus:ring-indigo-500'}`}>
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-          </button>
-          <button onClick={() => onDelete(invoice.id)} className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all">
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-          </button>
+          {canWrite ? (
+            <>
+              <button 
+                onClick={() => onToggleStatus(invoice.id)} 
+                disabled={isCancelado} 
+                title="Liquidar/Pendente"
+                className={`p-1.5 rounded-lg transition-all ${isCancelado ? 'text-slate-200 cursor-not-allowed' : 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 focus:ring-2 focus:ring-indigo-500'}`}
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              </button>
+              <button 
+                onClick={() => onDelete(invoice.id)} 
+                title="Excluir Registro"
+                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-all"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+              </button>
+            </>
+          ) : (
+            <div className="text-[10px] text-slate-300 font-bold uppercase py-1">Somente Leitura</div>
+          )}
         </div>
       </td>
     </tr>
@@ -116,15 +134,18 @@ const InvoiceRow = React.memo(({
   return prev.invoice.id === next.invoice.id && 
          prev.invoice.situacao === next.invoice.situacao &&
          prev.invoice.pgto === next.invoice.pgto &&
-         prev.invoice.valor === next.invoice.valor;
+         prev.invoice.valor === next.invoice.valor &&
+         prev.canWrite === next.canWrite;
 });
 
-const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, onDelete, onToggleStatus, onSelectInvoice, onEditInvoice }) => {
+const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, onDelete, onToggleStatus, onSelectInvoice, onEditInvoice, currentUser }) => {
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [sortField, setSortField] = useState<SortField | null>(null);
   const [sortOrder, setSortOrder] = useState<SortOrder>('asc');
   const [isPending, startTransition] = useTransition();
+
+  const canWrite = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.FINANCEIRO || currentUser?.role === UserRole.GESTOR;
 
   useEffect(() => {
     setCurrentPage(1);
@@ -231,6 +252,7 @@ const InvoiceTable: React.FC<InvoiceTableProps> = ({ invoices, onDelete, onToggl
                   onToggleStatus={onToggleStatus} 
                   onSelectInvoice={onSelectInvoice}
                   onEditInvoice={onEditInvoice}
+                  canWrite={canWrite}
                 />
               ))
             )}

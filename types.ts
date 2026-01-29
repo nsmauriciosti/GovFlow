@@ -7,6 +7,8 @@ export enum Situacao {
 
 export enum UserRole {
   ADMIN = 'Administrador',
+  FINANCEIRO = 'Financeiro',
+  CONSULTA = 'Consulta',
   GESTOR = 'Gestor',
   AUDITOR = 'Auditor'
 }
