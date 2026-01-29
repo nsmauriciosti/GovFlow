@@ -19,6 +19,9 @@ export interface User {
   role: UserRole;
   status: 'Ativo' | 'Inativo';
   lastLogin: string;
+  avatar?: string; // URL ou Base64
+  phone?: string;
+  bio?: string;
 }
 
 export interface HistoryEntry {
@@ -70,4 +73,4 @@ export interface SystemSetting {
   value: string;
 }
 
-export type ViewType = 'dashboard' | 'invoices' | 'users' | 'logs' | 'settings';
+export type ViewType = 'dashboard' | 'invoices' | 'users' | 'logs' | 'settings' | 'profile';

@@ -17,6 +17,7 @@ import LoginView from './components/LoginView';
 import InvoiceDetailsPanel from './components/InvoiceDetailsPanel';
 import NotificationDropdown from './components/NotificationDropdown';
 import Toast, { ToastMessage, ToastType } from './components/Toast';
+import ProfileView from './components/ProfileView';
 import { getFinancialInsights } from './services/geminiService';
 
 const App: React.FC = () => {
@@ -55,7 +56,6 @@ const App: React.FC = () => {
     secretaria: '', fornecedor: '', situacao: '', startDate: '', endDate: ''
   });
 
-  // Configurações Globais Computadas
   const systemName = settings.find(s => s.key === 'system_name')?.value || 'GovFlow Pro';
   const systemSlogan = settings.find(s => s.key === 'system_slogan')?.value || 'Portal de Gestão de Finanças Públicas';
   const footerText = settings.find(s => s.key === 'footer_text')?.value || 'Sistema restrito para servidores autorizados.';
@@ -63,7 +63,6 @@ const App: React.FC = () => {
 
   useEffect(() => { loadInitialData(); }, []);
 
-  // Efeito para Favicon e Title
   useEffect(() => {
     document.title = systemName;
     if (faviconUrl) {
@@ -212,11 +211,14 @@ const App: React.FC = () => {
         if (exists) return prev.map(u => u.id === userData.id ? userData : u);
         return [...prev, userData];
       });
+      if (userData.id === currentUser?.id) {
+        setCurrentUser(userData);
+      }
       setIsUserModalOpen(false);
       setEditingUser(null);
       addToast('Usuário salvo com sucesso.', 'success');
     } catch (err) { addToast('Erro ao salvar usuário.', 'error'); }
-  }, [addToast]);
+  }, [currentUser, addToast]);
 
   const handleDeleteUser = useCallback(async (id: string) => {
     if (id === currentUser?.id) {
@@ -268,7 +270,7 @@ const App: React.FC = () => {
           <div className="flex items-center gap-3">
              <div className="h-4 w-1 bg-indigo-600 rounded-full"></div>
              <h2 className="text-sm font-bold text-slate-900 tracking-tight uppercase flex items-center gap-2">
-               {currentView === 'dashboard' ? 'Analytics' : currentView === 'invoices' ? 'Notas Fiscais' : currentView === 'users' ? 'Usuários' : currentView === 'settings' ? 'Configurações' : 'Logs de Sistema'}
+               {currentView === 'dashboard' ? 'Analytics' : currentView === 'invoices' ? 'Notas Fiscais' : currentView === 'users' ? 'Usuários' : currentView === 'settings' ? 'Configurações' : currentView === 'profile' ? 'Meu Cadastro' : 'Logs de Sistema'}
              </h2>
           </div>
           <div className="flex items-center gap-4">
@@ -358,6 +360,7 @@ const App: React.FC = () => {
           {currentView === 'users' && <UserManagementView users={users} onAddUser={() => { setEditingUser(null); setIsUserModalOpen(true); }} onEditUser={(u) => { setEditingUser(u); setIsUserModalOpen(true); }} onDeleteUser={handleDeleteUser} currentUser={currentUser} />}
           {currentView === 'logs' && <ErrorLogsView />}
           {currentView === 'settings' && <SettingsView settings={settings} onSave={handleSaveSettings} />}
+          {currentView === 'profile' && currentUser && <ProfileView user={currentUser} onSave={handleSaveUser} onToast={addToast} />}
         </main>
       </div>
       <Toast toasts={toasts} onRemove={removeToast} />

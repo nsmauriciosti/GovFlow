@@ -34,6 +34,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, currentUser,
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
     },
     { 
+      id: 'profile', label: 'Meu Cadastro', show: true,
+      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+    },
+    { 
       id: 'users', label: 'Usuários', show: currentUser.role === UserRole.ADMIN,
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
     },
@@ -81,7 +85,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, currentUser,
             <div className="p-4 border-b border-slate-800 bg-slate-900/50">
               <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Sessão Ativa</p>
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-indigo-500 flex items-center justify-center text-sm font-bold text-white shadow-inner">{currentUser.name.charAt(0).toUpperCase()}</div>
+                <div className="w-10 h-10 rounded-xl bg-indigo-500 overflow-hidden shadow-inner flex items-center justify-center">
+                   {currentUser.avatar ? (
+                     <img src={currentUser.avatar} alt="Me" className="w-full h-full object-cover" />
+                   ) : (
+                     <span className="text-sm font-bold text-white">{currentUser.name.charAt(0).toUpperCase()}</span>
+                   )}
+                </div>
                 <div className="min-w-0">
                   <p className="text-sm font-bold text-white truncate">{currentUser.name}</p>
                   <p className="text-xs text-slate-400 truncate">{currentUser.email}</p>
@@ -89,6 +99,10 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, currentUser,
               </div>
             </div>
             <div className="p-2 space-y-1">
+              <button onClick={() => { onNavigate('profile'); setIsProfileOpen(false); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                Ver Perfil
+              </button>
               <button onClick={onLogout} className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-400 hover:bg-rose-500/10 rounded-lg transition-colors">
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3 3V7a3 3 0 013-3h4a3 3 0 013 3v1" /></svg>
                 Encerrar Sessão
@@ -101,7 +115,13 @@ const Sidebar: React.FC<SidebarProps> = ({ currentView, onNavigate, currentUser,
           className={`w-full bg-slate-900/50 rounded-2xl p-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-900 border border-transparent transition-all group ${isProfileOpen ? 'bg-slate-900 border-slate-800' : ''}`}
         >
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-indigo-500 flex items-center justify-center text-xs font-bold text-white shrink-0">{currentUser.name.charAt(0).toUpperCase()}</div>
+            <div className="w-8 h-8 rounded-lg bg-indigo-500 overflow-hidden flex items-center justify-center shrink-0">
+              {currentUser.avatar ? (
+                <img src={currentUser.avatar} alt="Me" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xs font-bold text-white">{currentUser.name.charAt(0).toUpperCase()}</span>
+              )}
+            </div>
             <div className="min-w-0 text-left">
               <p className="text-xs font-bold text-white truncate">{currentUser.name}</p>
               <p className="text-[10px] text-slate-500 truncate capitalize">{currentUser.role}</p>

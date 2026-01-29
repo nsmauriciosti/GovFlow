@@ -29,12 +29,10 @@ const DEFAULT_SETTINGS: SystemSetting[] = [
   { key: 'supabase_key', value: 'sb_publishable_PUkC5A7ZPTKRhqRQsPEddA_1UQ26Jt8' }
 ];
 
-// Auxiliar para converter data de login para o DB (evita erro 400 se for texto amigável)
 const formatLastLoginForDb = (lastLogin: string) => {
   if (!lastLogin || lastLogin.includes('Aguardando') || lastLogin.includes('Nunca')) {
     return null;
   }
-  // Se já for uma data no formato local, tenta converter para ISO ou retorna null
   try {
     const isoDate = new Date(lastLogin).toISOString();
     return isoDate;
@@ -90,7 +88,6 @@ export const dataService = {
       if (error) throw error;
       
       if (!adminExists) {
-        // Mapeia para snake_case antes de inserir
         const dbAdmin = {
           id: DEFAULT_ADMIN.id,
           name: DEFAULT_ADMIN.name,
@@ -98,7 +95,7 @@ export const dataService = {
           password: DEFAULT_ADMIN.password,
           role: DEFAULT_ADMIN.role,
           status: DEFAULT_ADMIN.status,
-          last_login: null // Seed sempre começa como null no DB
+          last_login: null
         };
         await sb.from('users').insert(dbAdmin);
       }
@@ -163,7 +160,10 @@ export const dataService = {
           password: u.password,
           role: u.role as UserRole,
           status: u.status as 'Ativo' | 'Inactive',
-          lastLogin: u.last_login ? new Date(u.last_login).toLocaleString('pt-BR') : 'Nunca acessou'
+          lastLogin: u.last_login ? new Date(u.last_login).toLocaleString('pt-BR') : 'Nunca acessou',
+          avatar: u.avatar,
+          phone: u.phone,
+          bio: u.bio
         })) as User[];
       } catch (err) { return localUsers; }
     }
@@ -179,7 +179,6 @@ export const dataService = {
     const sb = getSupabaseClient();
     if (sb) {
       try {
-        // Mapeamento explícito para colunas do Banco de Dados
         const dbUser = { 
           id: user.id, 
           name: user.name, 
@@ -187,13 +186,13 @@ export const dataService = {
           password: user.password, 
           role: user.role, 
           status: user.status, 
-          last_login: formatLastLoginForDb(user.lastLogin)
+          last_login: formatLastLoginForDb(user.lastLogin),
+          avatar: user.avatar,
+          phone: user.phone,
+          bio: user.bio
         };
         const { error } = await sb.from('users').upsert(dbUser);
-        if (error) {
-          console.error("Erro ao salvar no Supabase:", error);
-          throw error;
-        }
+        if (error) throw error;
       } catch (err) {
         console.error("Falha na sincronização Supabase:", err);
       }
