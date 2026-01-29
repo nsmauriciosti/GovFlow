@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
-import { SupabaseClient } from 'https://esm.sh/@supabase/supabase-js@^2.45.4';
+import { SupabaseClient } from '@supabase/supabase-js';
 
 /**
  * Hook para gerenciar a inicialização e acesso ao cliente Supabase.

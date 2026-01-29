@@ -15,7 +15,7 @@
     "@google/genai": "^1.38.0",
     "recharts": "^2.15.0",
     "@supabase/supabase-js": "^2.45.4",
-    "xlsx": "https://esm.sh/xlsx@0.18.5"
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@types/react": "^19.0.0",
