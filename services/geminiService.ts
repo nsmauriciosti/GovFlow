@@ -7,22 +7,24 @@ import { Invoice, Supplier } from "../types";
  * Otimizado para processar chunks individuais para evitar estouro de tokens.
  */
 export const parseBulkData = async (rawText: string): Promise<(Partial<Invoice> & { supplierData?: Partial<Supplier> })[]> => {
+  if (!rawText || rawText.trim().length === 0) return [];
+
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Você é um Analista de Dados Governamentais especializado em Notas Fiscais (NFe).
-      Analise o conteúdo abaixo e extraia os dados para um array JSON.
+      Analise o conteúdo abaixo e extraia os dados para um array JSON estruturado.
       
-      IMPORTANTE:
-      - Extraia o CNPJ apenas com números ou no formato padrão.
-      - Se for XML, use as tags <emit>, <enderEmit>, <vPrest>, <infNFe>.
-      - Se o valor contiver vírgula, converta para número (ponto decimal).
-      - Retorne APENAS o JSON estruturado, sem explicações.
+      Regras:
+      - Extraia CNPJ (numérico), Razão Social, Número da NF, Valor e Vencimento.
+      - Se for XML, procure por <emit>, <vNF>, <dVenc>.
+      - Se for CSV/Planilha, identifique as colunas de Fornecedor e Valor.
+      - Retorne APENAS o JSON no formato de array, sem textos explicativos.
 
-      CONTEÚDO:
-      ${rawText.substring(0, 500000)}`, // Salvaguarda adicional de caracteres
+      CONTEÚDO PARA ANÁLISE:
+      ${rawText.substring(0, 300000)}`, // Limite conservador para evitar estouro de token no input
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -52,19 +54,20 @@ export const parseBulkData = async (rawText: string): Promise<(Partial<Invoice> 
                 }
               }
             },
-            required: ["secretaria", "fornecedor", "valor"]
+            required: ["fornecedor", "valor"]
           }
         }
       }
     });
 
-    const text = response.text || "[]";
-    // Limpeza de possíveis blocos de código markdown que a IA possa retornar por engano
-    const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    const responseText = response.text || "[]";
+    // Tenta extrair apenas a parte do JSON caso a IA retorne markdown ```json ... ```
+    const jsonMatch = responseText.match(/\[[\s\S]*\]/);
+    const cleanJson = jsonMatch ? jsonMatch[0] : responseText;
+    
     return JSON.parse(cleanJson);
   } catch (e) {
-    console.error("Erro ao processar resposta do Gemini", e);
-    // Se o erro for de parsing (JSON incompleto), tenta retornar o que foi possível ou array vazio
+    console.error("Erro na extração IA Gemini:", e);
     return [];
   }
 };
@@ -77,7 +80,7 @@ export const getFinancialInsights = async (invoices: Invoice[]): Promise<string>
   
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  // Limita a quantidade de notas enviadas para insight para não estourar contexto
+  // Amostra de dados para contexto (limita para não estourar tokens)
   const summary = invoices.slice(0, 50).map(i => ({
     sec: i.secretaria,
     val: i.valor,
@@ -88,14 +91,14 @@ export const getFinancialInsights = async (invoices: Invoice[]): Promise<string>
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Atue como um Especialista em Gestão de Finanças Públicas. Analise estes dados de notas fiscais e forneça um breve resumo executivo (máximo 3 parágrafos).
+      contents: `Atue como Especialista em Finanças Públicas. Resuma estes dados de faturas (máximo 3 parágrafos curtos). Foque em volume por secretaria e riscos de vencimento.
       
-      Dados: ${JSON.stringify(summary)}`,
+      DADOS: ${JSON.stringify(summary)}`,
     });
 
-    return response.text || "Não foi possível gerar insights.";
+    return response.text || "Resumo não disponível.";
   } catch (e) {
-    console.error("Erro ao gerar insights", e);
-    return "Erro ao conectar com o serviço de IA.";
+    console.error("Erro ao gerar insights:", e);
+    return "O motor de IA encontrou um erro ao processar o dashboard.";
   }
 };
