@@ -331,16 +331,32 @@ const App: React.FC = () => {
                 <KpiCard title="Pendências" value={invoices.filter(i => i.situacao === Situacao.NAO_PAGO && !i.pgto).length.toString()} icon={<svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01" /></svg>} colorClass="bg-amber-50 dark:bg-amber-950/30" />
               </div>
               
+              {/* Radar de Vencimentos - Prioritário */}
               <ReminderSection invoices={invoices} />
+              
+              {/* Dashboards e Gráficos */}
+              <DashboardView invoices={invoices.filter(i => i.situacao !== Situacao.CANCELADO)} theme={theme} />
 
-              <div className="bg-indigo-900 rounded-[1.2rem] lg:rounded-[2rem] p-5 lg:p-8 text-white relative overflow-hidden shadow-xl">
+              {/* Insights de IA - Posicionado na parte de baixo como conclusão */}
+              <div className="bg-indigo-900 rounded-[1.2rem] lg:rounded-[2rem] p-6 lg:p-10 text-white relative overflow-hidden shadow-2xl transition-all hover:shadow-indigo-500/10">
+                <div className="absolute top-0 right-0 p-8 opacity-10">
+                  <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 6a1 1 0 0 0-1 1v5.59l-2.71 2.7a1 1 0 0 0 1.42 1.42l3-3A1 1 0 0 0 13 13V7a1 1 0 0 0-1-1z"/></svg>
+                </div>
                 <div className="relative z-10">
-                  <h3 className="text-base lg:text-xl font-bold mb-3 flex items-center gap-2"><span className="bg-indigo-500 px-2 py-0.5 rounded text-[9px] lg:text-[10px]">IA</span> Resumo Executivo</h3>
-                  <div className="prose prose-invert max-w-none text-indigo-100 text-[11px] sm:text-sm leading-relaxed whitespace-pre-wrap">{aiInsight || "Aguardando análise de dados..."}</div>
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="bg-indigo-500 p-2.5 rounded-2xl shadow-lg">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <div>
+                      <h3 className="text-lg lg:text-2xl font-black tracking-tight">Resumo Executivo & Governança</h3>
+                      <p className="text-indigo-300 text-[10px] lg:text-xs font-bold uppercase tracking-widest">Análise de Inteligência Artificial Gemini</p>
+                    </div>
+                  </div>
+                  <div className="prose prose-invert max-w-none text-indigo-100 text-xs sm:text-sm lg:text-base leading-relaxed whitespace-pre-wrap font-medium">
+                    {aiInsight || "Aguardando análise de dados em tempo real..."}
+                  </div>
                 </div>
               </div>
-              
-              <DashboardView invoices={invoices.filter(i => i.situacao !== Situacao.CANCELADO)} theme={theme} />
             </div>
           )}
           
