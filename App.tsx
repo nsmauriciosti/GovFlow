@@ -45,6 +45,7 @@ const App: React.FC = () => {
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
+  const [isFabOpen, setIsFabOpen] = useState(false);
   
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
@@ -84,6 +85,7 @@ const App: React.FC = () => {
   const systemSlogan = settings.find(s => s.key === 'system_slogan')?.value || 'Portal de Gestão de Finanças Públicas';
   const footerText = settings.find(s => s.key === 'footer_text')?.value || 'Sistema restrito para servidores autorizados.';
   const faviconUrl = settings.find(s => s.key === 'favicon_url')?.value;
+  const isAiEnabled = settings.find(s => s.key === 'ai_enabled')?.value !== 'false';
 
   useEffect(() => { loadInitialData(); }, []);
 
@@ -101,10 +103,12 @@ const App: React.FC = () => {
   }, [systemName, faviconUrl]);
 
   useEffect(() => {
-    if (currentView === 'dashboard' && invoices.length > 0 && !aiInsight) generateInsights();
-  }, [currentView, invoices, aiInsight]);
+    if (currentView === 'dashboard' && invoices.length > 0 && !aiInsight && isAiEnabled) generateInsights();
+    else if (!isAiEnabled) setAiInsight('As funcionalidades de Inteligência Artificial estão temporariamente desativadas pelo administrador.');
+  }, [currentView, invoices, aiInsight, isAiEnabled]);
 
   const generateInsights = async () => {
+    if (!isAiEnabled) return;
     try {
       const insight = await getFinancialInsights(invoices);
       setAiInsight(insight);
@@ -228,14 +232,9 @@ const App: React.FC = () => {
     }
   }, [addToast]);
 
-  /**
-   * Função que coordena a importação de notas e a sincronização de fornecedores.
-   */
   const handleImport = useCallback(async (data: { invoices: Invoice[], supplierMetadata: (Partial<Supplier> & { forName: string })[] }) => {
     const { invoices: newInvoices, supplierMetadata } = data;
-    
     try {
-      // 1. Salvar as Notas Fiscais com histórico
       const updatedInvoicesWithHistory = newInvoices.map(inv => ({
         ...inv, 
         history: [{ 
@@ -245,25 +244,17 @@ const App: React.FC = () => {
           user: currentUser?.name || 'Sistema' 
         }]
       }));
-
       for (const inv of updatedInvoicesWithHistory) {
         await dataService.saveInvoice(inv);
       }
       setInvoices(prev => [...updatedInvoicesWithHistory, ...prev]);
-
-      // 2. Sincronizar Fornecedores (Inserir novos ou atualizar existentes via CNPJ)
       let suppliersSyncCount = 0;
       const currentSuppliers = await dataService.getSuppliers();
       const finalSuppliers = [...currentSuppliers];
-
       for (const meta of supplierMetadata) {
         if (!meta.cnpj) continue;
-        
-        // Verifica se já existe no banco ou no lote atual
         const existingIdx = finalSuppliers.findIndex(s => s.cnpj.replace(/\D/g, '') === meta.cnpj?.replace(/\D/g, ''));
-        
         if (existingIdx === -1) {
-          // Novo fornecedor detectado
           const newSupplier: Supplier = {
             id: generateId(),
             razaoSocial: meta.razaoSocial || meta.forName || 'Razão não informada',
@@ -282,12 +273,10 @@ const App: React.FC = () => {
           suppliersSyncCount++;
         }
       }
-
       if (suppliersSyncCount > 0) {
         setSuppliers(finalSuppliers);
         addToast(`${suppliersSyncCount} novos fornecedores cadastrados.`, 'success');
       }
-
       setAiInsight('');
       addToast(`Importação de ${newInvoices.length} notas finalizada com sucesso.`, 'success');
     } catch (err) { 
@@ -312,7 +301,6 @@ const App: React.FC = () => {
       addToast('Apenas administradores podem limpar a base.', 'warning');
       return;
     }
-
     if (confirm("🚨 ATENÇÃO: Deseja deletar TODAS as notas fiscais permanentemente? Esta ação não pode ser desfeita.")) {
       try {
         await dataService.deleteAllInvoices();
@@ -398,7 +386,7 @@ const App: React.FC = () => {
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
       />
       
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0 relative">
         <header className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 py-3 px-4 lg:px-8 sticky top-0 z-40 no-print flex justify-between items-center shadow-sm transition-colors">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
              <button onClick={() => setIsSidebarOpen(true)} className="lg:hidden p-1.5 -ml-1 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg transition-colors">
@@ -415,33 +403,6 @@ const App: React.FC = () => {
               <NotificationDropdown invoices={invoices} onSelectInvoice={setSelectedInvoice} theme={theme} />
               <ProfileDropdown currentUser={currentUser} onNavigate={setCurrentView} onLogout={handleLogout} theme={theme} />
             </div>
-            <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
-            
-            <div className="flex gap-2">
-              {currentView === 'invoices' && (
-                <>
-                  {currentUser?.role === UserRole.ADMIN && (
-                    <button 
-                      onClick={handleDeleteAllInvoices} 
-                      className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all flex items-center gap-1.5 hover:bg-rose-100 dark:hover:bg-rose-900/50 shadow-sm"
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      Limpar Base
-                    </button>
-                  )}
-                  {canWrite && (
-                    <>
-                      <button onClick={() => { setEditingInvoice(null); setIsManualModalOpen(true); }} className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-200 dark:border-slate-700">
-                        <span className="hidden xs:inline">Novo</span> Registro
-                      </button>
-                      <button onClick={() => setIsImportModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
-                        <span className="hidden xs:inline">Importar</span> IA
-                      </button>
-                    </>
-                  )}
-                </>
-              )}
-            </div>
           </div>
         </header>
 
@@ -454,11 +415,8 @@ const App: React.FC = () => {
                 <KpiCard title="Total Registros" value={invoices.length.toString()} icon={<svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5" /></svg>} colorClass="bg-blue-50 dark:bg-blue-950/30" />
                 <KpiCard title="Pendências" value={invoices.filter(i => i.situacao === Situacao.NAO_PAGO && !i.pgto).length.toString()} icon={<svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01" /></svg>} colorClass="bg-amber-50 dark:bg-amber-950/30" />
               </div>
-              
               <ReminderSection invoices={invoices} />
-              
               <DashboardView invoices={invoices.filter(i => i.situacao !== Situacao.CANCELADO)} theme={theme} />
-
               <div className="bg-indigo-900 rounded-[1.2rem] lg:rounded-[2rem] p-6 lg:p-10 text-white relative overflow-hidden shadow-2xl transition-all hover:shadow-indigo-500/10">
                 <div className="absolute top-0 right-0 p-8 opacity-10">
                   <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 6a1 1 0 0 0-1 1v5.59l-2.71 2.7a1 1 0 0 0 1.42 1.42l3-3A1 1 0 0 0 13 13V7a1 1 0 0 0-1-1z"/></svg>
@@ -483,6 +441,38 @@ const App: React.FC = () => {
           
           {currentView === 'invoices' && (
             <div className="animate-in fade-in duration-500 space-y-4 lg:space-y-6 max-w-7xl mx-auto">
+              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white dark:bg-slate-900 p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
+                <div>
+                  <h2 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Gestão de Notas</h2>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest mt-1">Controle Financeiro de Recebíveis</p>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  {currentUser?.role === UserRole.ADMIN && (
+                    <button 
+                      onClick={handleDeleteAllInvoices} 
+                      className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 hover:bg-rose-100 dark:hover:bg-rose-900/50"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      Limpar Base
+                    </button>
+                  )}
+                  {canWrite && (
+                    <div className="flex items-center gap-3">
+                      <button onClick={() => { setEditingInvoice(null); setIsManualModalOpen(true); }} className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 border border-slate-200 dark:border-slate-700">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+                        Novo Lançamento
+                      </button>
+                      {isAiEnabled && (
+                        <button onClick={() => setIsImportModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-2 shadow-lg shadow-indigo-600/20">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                          Importar IA
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+
               <section className="bg-white dark:bg-slate-900 p-4 lg:p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-800 no-print space-y-4 transition-colors">
                 <div className="flex justify-between items-center gap-4">
                   <h3 className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Filtros Avançados</h3>
@@ -490,15 +480,15 @@ const App: React.FC = () => {
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3 lg:gap-4">
                   <div className="lg:col-span-2">
-                    <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1 ml-1">Secretaria</label>
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Secretaria</label>
                     <input placeholder="Busca..." className="w-full p-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/10 transition-all" value={filters.secretaria} onChange={(e) => setFilters(prev => ({...prev, secretaria: e.target.value}))} />
                   </div>
                   <div className="lg:col-span-2">
-                    <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1 ml-1">Fornecedor</label>
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Fornecedor</label>
                     <input placeholder="Busca..." className="w-full p-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/10 transition-all" value={filters.fornecedor} onChange={(e) => setFilters(prev => ({...prev, fornecedor: e.target.value}))} />
                   </div>
                   <div className="lg:col-span-2">
-                    <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1 ml-1">Situação</label>
+                    <label className="block text-[9px] font-bold text-slate-400 uppercase mb-1.5 ml-1">Situação</label>
                     <select className="w-full p-2.5 border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 rounded-xl text-xs sm:text-sm font-bold text-slate-900 dark:text-slate-100 outline-none focus:ring-2 focus:ring-indigo-500/10 transition-all" value={filters.situacao} onChange={(e) => setFilters(prev => ({...prev, situacao: e.target.value}))}>
                       <option value="">Todas</option>
                       <option value={Situacao.PAGO}>PAGO</option>
@@ -540,9 +530,45 @@ const App: React.FC = () => {
           {currentView === 'profile' && currentUser && <div className="max-w-4xl mx-auto"><ProfileView user={currentUser} onSave={handleSaveUser} onToast={addToast} theme={theme} /></div>}
         </main>
       </div>
+
+      {/* Floating Action Button (FAB) for Invoices View */}
+      {currentView === 'invoices' && canWrite && (
+        <div className="fixed bottom-8 right-8 z-[60] flex flex-col items-end gap-3 no-print">
+          {isFabOpen && (
+            <div className="flex flex-col items-end gap-3 mb-3 animate-in slide-in-from-bottom-5 duration-300">
+              <button 
+                onClick={() => { setEditingInvoice(null); setIsManualModalOpen(true); setIsFabOpen(false); }}
+                className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-3 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-all hover:scale-105 active:scale-95 group"
+              >
+                <span className="text-xs font-black uppercase tracking-widest">Manual</span>
+                <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+                </div>
+              </button>
+              {isAiEnabled && (
+                <button 
+                  onClick={() => { setIsImportModalOpen(true); setIsFabOpen(false); }}
+                  className="flex items-center gap-3 bg-white dark:bg-slate-900 px-4 py-3 rounded-2xl shadow-2xl border border-slate-100 dark:border-slate-800 text-slate-700 dark:text-slate-300 transition-all hover:scale-105 active:scale-95 group"
+                >
+                  <span className="text-xs font-black uppercase tracking-widest">Importar IA</span>
+                  <div className="w-8 h-8 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-indigo-500 group-hover:text-white transition-colors">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
+                  </div>
+                </button>
+              )}
+            </div>
+          )}
+          <button 
+            onClick={() => setIsFabOpen(!isFabOpen)}
+            className={`w-14 h-14 rounded-2xl bg-indigo-600 text-white shadow-2xl shadow-indigo-600/40 flex items-center justify-center transition-all hover:scale-110 active:scale-95 ${isFabOpen ? 'rotate-45 bg-slate-900 dark:bg-slate-800' : ''}`}
+          >
+            <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M12 4v16m8-8H4" /></svg>
+          </button>
+        </div>
+      )}
       
       <Toast toasts={toasts} onRemove={removeToast} />
-      {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onImport={handleImport} onToast={addToast} userEmail={currentUser?.email || 'Sistema'} theme={theme} />}
+      {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onImport={handleImport} onToast={addToast} userEmail={currentUser?.email || 'Sistema'} theme={theme} isAiEnabled={isAiEnabled} />}
       {isManualModalOpen && <ManualEntryModal invoice={editingInvoice} onClose={() => { setIsManualModalOpen(false); setEditingInvoice(null); }} onSave={handleSaveManual} onToast={addToast} theme={theme} />}
       {isUserModalOpen && <UserModal user={editingUser} onClose={() => { setIsUserModalOpen(false); setEditingUser(null); }} onSave={handleSaveUser} onToast={addToast} theme={theme} />}
       {isSupplierModalOpen && <SupplierModal supplier={editingSupplier} onClose={() => { setIsSupplierModalOpen(false); setEditingSupplier(null); }} onSave={handleSaveSupplier} theme={theme} />}

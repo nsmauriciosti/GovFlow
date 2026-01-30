@@ -3,8 +3,8 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { Invoice, Supplier } from "../types";
 
 /**
- * Analisa dados em lote (texto ou XML) e os converte em objetos Invoice estruturados,
- * incluindo metadados de fornecedores para sincronização automática.
+ * Analisa dados (texto ou XML) e os converte em objetos Invoice estruturados.
+ * Otimizado para processar chunks individuais para evitar estouro de tokens.
  */
 export const parseBulkData = async (rawText: string): Promise<(Partial<Invoice> & { supplierData?: Partial<Supplier> })[]> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
@@ -12,21 +12,17 @@ export const parseBulkData = async (rawText: string): Promise<(Partial<Invoice> 
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Você é um Analista de Dados Governamentais especializado em Notas Fiscais (NFe) e Cadastros de Fornecedores. 
-      Analise o conteúdo abaixo (que pode ser texto, CSV ou XML bruto).
+      contents: `Você é um Analista de Dados Governamentais especializado em Notas Fiscais (NFe).
+      Analise o conteúdo abaixo e extraia os dados para um array JSON.
       
-      INSTRUÇÕES DE EXTRAÇÃO:
-      1. Extraia cada nota fiscal encontrada para o array JSON.
-      2. Para cada nota, identifique os dados do EMITENTE (Fornecedor).
-      3. Importante: Extraia o CNPJ sem formatação (apenas números) ou no formato 00.000.000/0000-00.
-      4. No caso de XML NFe:
-         - Localize a tag <emit> para extrair CNPJ, xNome (razaoSocial), xFant (nomeFantasia).
-         - Localize <enderEmit> para endereco, xLgr, nro, xBairro, xMun (cidade), UF (estado).
-         - Localize <email> e <fone> (telefone).
-      5. Formatos: VALOR (number), VCTO (YYYY-MM-DD), PGTO (YYYY-MM-DD ou null).
-      
+      IMPORTANTE:
+      - Extraia o CNPJ apenas com números ou no formato padrão.
+      - Se for XML, use as tags <emit>, <enderEmit>, <vPrest>, <infNFe>.
+      - Se o valor contiver vírgula, converta para número (ponto decimal).
+      - Retorne APENAS o JSON estruturado, sem explicações.
+
       CONTEÚDO:
-      ${rawText}`,
+      ${rawText.substring(0, 500000)}`, // Salvaguarda adicional de caracteres
       config: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -62,9 +58,13 @@ export const parseBulkData = async (rawText: string): Promise<(Partial<Invoice> 
       }
     });
 
-    return JSON.parse(response.text || "[]");
+    const text = response.text || "[]";
+    // Limpeza de possíveis blocos de código markdown que a IA possa retornar por engano
+    const cleanJson = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    return JSON.parse(cleanJson);
   } catch (e) {
     console.error("Erro ao processar resposta do Gemini", e);
+    // Se o erro for de parsing (JSON incompleto), tenta retornar o que foi possível ou array vazio
     return [];
   }
 };
@@ -73,9 +73,12 @@ export const parseBulkData = async (rawText: string): Promise<(Partial<Invoice> 
  * Fornece insights financeiros resumidos a partir de uma lista de faturas.
  */
 export const getFinancialInsights = async (invoices: Invoice[]): Promise<string> => {
+  if (invoices.length === 0) return "Aguardando dados para análise.";
+  
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
-  const summary = invoices.map(i => ({
+  // Limita a quantidade de notas enviadas para insight para não estourar contexto
+  const summary = invoices.slice(0, 50).map(i => ({
     sec: i.secretaria,
     val: i.valor,
     sit: i.situacao,
@@ -85,7 +88,7 @@ export const getFinancialInsights = async (invoices: Invoice[]): Promise<string>
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
-      contents: `Atue como um Especialista em Gestão de Finanças Públicas. Analise estes dados de notas fiscais e forneça um breve resumo executivo (máximo 3 parágrafos) com pontos de atenção sobre fluxo de caixa e governança.
+      contents: `Atue como um Especialista em Gestão de Finanças Públicas. Analise estes dados de notas fiscais e forneça um breve resumo executivo (máximo 3 parágrafos).
       
       Dados: ${JSON.stringify(summary)}`,
     });

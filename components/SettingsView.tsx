@@ -34,6 +34,8 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, theme }) 
     setTimeout(() => window.location.reload(), 1500);
   };
 
+  const isAiEnabled = getValue('ai_enabled') === 'true';
+
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 max-w-4xl mx-auto pb-20 transition-colors">
       <div className="mb-8">
@@ -44,6 +46,38 @@ const SettingsView: React.FC<SettingsViewProps> = ({ settings, onSave, theme }) 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-sm border border-slate-100 dark:border-slate-800 overflow-hidden transition-colors">
           <div className="p-8 space-y-8">
+            {/* Seção Governança de IA */}
+            <section className="p-6 bg-indigo-50 dark:bg-indigo-950/20 rounded-[2rem] border border-indigo-100 dark:border-indigo-900/40">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="flex gap-4">
+                  <div className={`p-3 rounded-2xl transition-colors ${isAiEnabled ? 'bg-indigo-600 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-400'}`}>
+                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-slate-900 dark:text-white uppercase tracking-widest">Motor de Inteligência Artificial</h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 font-medium">Controla o uso do Gemini para análise de dados e importação.</p>
+                  </div>
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => updateSetting('ai_enabled', isAiEnabled ? 'false' : 'true')}
+                  className={`relative inline-flex h-8 w-16 items-center rounded-full transition-colors focus:outline-none ${isAiEnabled ? 'bg-indigo-600' : 'bg-slate-300 dark:bg-slate-700'}`}
+                >
+                  <span className={`inline-block h-6 w-6 transform rounded-full bg-white transition-transform ${isAiEnabled ? 'translate-x-9' : 'translate-x-1'}`} />
+                </button>
+              </div>
+              <div className="mt-4 flex gap-2">
+                <div className="w-1 h-auto bg-indigo-200 dark:bg-indigo-800 rounded-full"></div>
+                <p className="text-[10px] text-indigo-600 dark:text-indigo-400 font-bold uppercase tracking-widest leading-relaxed">
+                  {isAiEnabled 
+                    ? "A IA está ATIVA. O sistema gerará resumos executivos e processará notas fiscais automaticamente." 
+                    : "A IA está DESATIVADA. O sistema não consumirá tokens e as funcionalidades de análise e importação inteligente ficarão suspensas."}
+                </p>
+              </div>
+            </section>
+
+            <div className="h-px bg-slate-100 dark:bg-slate-800"></div>
+
             {/* Seção Identidade */}
             <section>
               <h3 className="text-xs font-black text-indigo-600 dark:text-indigo-400 uppercase tracking-widest mb-6 flex items-center gap-2">

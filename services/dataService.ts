@@ -27,7 +27,8 @@ const DEFAULT_SETTINGS: SystemSetting[] = [
   { key: 'favicon_url', value: '' },
   { key: 'footer_text', value: 'Sistema restrito para servidores autorizados.' },
   { key: 'supabase_url', value: 'https://qiafgsigctmizdrgrdls.supabase.co' },
-  { key: 'supabase_key', value: 'sb_publishable_PUkC5A7ZPTKRhqRQsPEddA_1UQ26Jt8' }
+  { key: 'supabase_key', value: 'sb_publishable_PUkC5A7ZPTKRhqRQsPEddA_1UQ26Jt8' },
+  { key: 'ai_enabled', value: 'true' }
 ];
 
 const localDb = {
