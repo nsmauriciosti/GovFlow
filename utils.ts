@@ -12,6 +12,17 @@ export const formatDateBR = (dateStr: string | null): string => {
   return `${day}/${month}/${year}`;
 };
 
+export const formatDateTimeBR = (dateStr: string | null): string => {
+  if (!dateStr) return '-';
+  // Retorna a própria string se for um dos fallbacks conhecidos
+  if (dateStr.includes('Nunca') || dateStr.includes('Aguardando')) return dateStr;
+  
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) return dateStr;
+  
+  return date.toLocaleString('pt-BR');
+};
+
 export const parseDateBR = (dateStr: string): string => {
   // Input: DD/MM/YYYY Output: YYYY-MM-DD
   const parts = dateStr.split('/');

@@ -1,7 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { parseBulkData } from '../services/geminiService';
-import { Invoice, Situacao, ImportErrorLog } from '../types';
+import { Invoice, Situacao, ImportErrorLog, Supplier } from '../types';
 import { generateId } from '../utils';
 import { dataService } from '../services/dataService';
 import { ToastType } from './Toast';
@@ -9,10 +9,9 @@ import * as XLSX from 'xlsx';
 
 interface ImportModalProps {
   onClose: () => void;
-  onImport: (newInvoices: Invoice[]) => void;
+  onImport: (data: { invoices: Invoice[], supplierMetadata: (Partial<Supplier> & { forName: string })[] }) => void;
   onToast: (msg: string, type: ToastType) => void;
   userEmail: string;
-  // Added theme prop to fix TypeScript error in App.tsx
   theme: 'light' | 'dark';
 }
 
@@ -21,6 +20,7 @@ interface ImportSummary {
   errorFiles: { name: string; details: string }[];
   totalInvoices: number;
   invoices: Invoice[];
+  supplierMetadata: (Partial<Supplier> & { forName: string })[];
 }
 
 const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, userEmail, theme }) => {
@@ -31,6 +31,27 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
   const [pastedText, setPastedText] = useState('');
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Added handleDrag to handle drag events on the drop zone
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
+    }
+  };
+
+  // Added handleDrop to process files dropped into the drop zone
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      processFiles(e.dataTransfer.files);
+    }
+  };
 
   const logError = async (fileName: string, type: ImportErrorLog['errorType'], details: string) => {
     const log: ImportErrorLog = {
@@ -96,7 +117,8 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
             successFiles: [],
             errorFiles: currentErrorFiles,
             totalInvoices: 0,
-            invoices: []
+            invoices: [],
+            supplierMetadata: []
           });
         }
         setLoading(false);
@@ -142,7 +164,8 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
           successFiles: isFromFiles ? [] : [],
           errorFiles: isFromFiles ? [...errorFiles, { name: "Análise IA", details }] : [{ name: sourceName, details }],
           totalInvoices: 0,
-          invoices: []
+          invoices: [],
+          supplierMetadata: []
         });
         setLoading(false);
         return;
@@ -151,24 +174,38 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
       setProgress(95);
       setStatusMessage("Finalizando extração...");
 
-      const invoices: Invoice[] = parsed.map(p => ({
-        id: generateId(),
-        secretaria: p.secretaria || 'NÃO INFORMADA',
-        fornecedor: p.fornecedor || 'NÃO INFORMADO',
-        ne: p.ne || '---',
-        nf: p.nf || '---',
-        valor: p.valor || 0,
-        vcto: p.vcto || new Date().toISOString().split('T')[0],
-        pgto: p.pgto || null,
-        situacao: (p.situacao as Situacao) || Situacao.NAO_PAGO
-      }));
+      const supplierMetadata: (Partial<Supplier> & { forName: string })[] = [];
+
+      const invoices: Invoice[] = parsed.map(p => {
+        const forName = p.fornecedor || 'NÃO INFORMADO';
+        
+        if (p.supplierData && p.supplierData.cnpj) {
+          // Evitar duplicatas de metadados no mesmo lote
+          if (!supplierMetadata.find(m => m.cnpj === p.supplierData?.cnpj)) {
+            supplierMetadata.push({ ...p.supplierData, forName });
+          }
+        }
+
+        return {
+          id: generateId(),
+          secretaria: p.secretaria || 'NÃO INFORMADA',
+          fornecedor: forName,
+          ne: p.ne || '---',
+          nf: p.nf || '---',
+          valor: p.valor || 0,
+          vcto: p.vcto || new Date().toISOString().split('T')[0],
+          pgto: p.pgto || null,
+          situacao: (p.situacao as Situacao) || Situacao.NAO_PAGO
+        };
+      });
       
       setProgress(100);
       setSummary({
         successFiles,
         errorFiles,
         totalInvoices: invoices.length,
-        invoices
+        invoices,
+        supplierMetadata
       });
       setLoading(false);
       
@@ -180,28 +217,18 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
     }
   };
 
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") setDragActive(true);
-    else if (e.type === "dragleave") setDragActive(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault(); e.stopPropagation();
-    setDragActive(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) processFiles(e.dataTransfer.files);
-  };
-
   const confirmImport = () => {
     if (summary && summary.invoices.length > 0) {
-      onImport(summary.invoices);
+      onImport({ 
+        invoices: summary.invoices, 
+        supplierMetadata: summary.supplierMetadata 
+      });
       onClose();
     } else {
       onClose();
     }
   };
 
-  // Visualização de Resumo
   if (summary) {
     return (
       <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
@@ -212,11 +239,23 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
               <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Confira os resultados antes de salvar.</p>
             </div>
             <div className="bg-indigo-600 text-white px-4 py-1 rounded-full text-xs font-black uppercase">
-              {summary.totalInvoices} Itens Identificados
+              {summary.totalInvoices} Notas Identificadas
             </div>
           </div>
 
           <div className="p-8 space-y-6 max-h-[60vh] overflow-y-auto custom-scrollbar">
+            {summary.supplierMetadata.length > 0 && (
+              <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-2xl border border-indigo-100 dark:border-indigo-800">
+                <div className="flex items-center gap-2 mb-2">
+                  <svg className="w-4 h-4 text-indigo-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <p className="text-xs font-black text-indigo-800 dark:text-indigo-300 uppercase">Sincronização de Cadastro</p>
+                </div>
+                <p className="text-[11px] text-indigo-600 dark:text-indigo-400 leading-tight">
+                  Identificamos dados de <strong>{summary.supplierMetadata.length} fornecedores</strong>. Eles serão cadastrados automaticamente se ainda não existirem no sistema.
+                </p>
+              </div>
+            )}
+
             {summary.successFiles.length > 0 && (
               <section>
                 <h4 className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 uppercase tracking-widest mb-3 flex items-center gap-2">
@@ -253,12 +292,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
                 </ul>
               </section>
             )}
-
-            {summary.totalInvoices === 0 && summary.errorFiles.length === 0 && (
-              <div className="text-center py-8">
-                <p className="text-slate-500 dark:text-slate-400 font-medium">Nenhum dado foi extraído dos arquivos fornecidos.</p>
-              </div>
-            )}
           </div>
 
           <div className="p-8 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-4 bg-slate-50/50 dark:bg-slate-800/50">
@@ -271,11 +304,6 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
             </button>
           </div>
         </div>
-        <style>{`
-          .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-          .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-          .custom-scrollbar::-webkit-scrollbar-thumb { background: ${theme === 'dark' ? '#334155' : '#e2e8f0'}; border-radius: 10px; }
-        `}</style>
       </div>
     );
   }
@@ -286,7 +314,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
         <div className="p-8 border-b border-slate-100 dark:border-slate-800 flex justify-between items-center bg-slate-50/50 dark:bg-slate-800/50">
           <div>
             <h3 className="text-2xl font-black text-slate-900 dark:text-slate-100 tracking-tight">Importação Inteligente</h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Os erros de processamento são registrados para auditoria.</p>
+            <p className="text-sm text-slate-500 dark:text-slate-400 font-medium">Extraia dados de NFe XML ou Planilhas com IA.</p>
           </div>
           <button onClick={onClose} className="text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300 p-2 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-full transition-all">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -309,7 +337,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
                 <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" /></svg>
               </div>
               <div>
-                <p className="text-lg font-bold text-slate-800 dark:text-slate-100">Arraste seus arquivos aqui</p>
+                <p className="text-lg font-bold text-slate-800 dark:text-slate-100">Arraste arquivos ou pastas</p>
                 <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">XML, XLSX, XLS ou CSV</p>
               </div>
               <button 
@@ -335,11 +363,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
                       ></div>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center justify-center gap-3">
-                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 dark:border-indigo-400 border-t-transparent"></div>
-                    <p className="text-[10px] text-slate-400 dark:text-slate-500 font-bold uppercase tracking-widest">Processando em tempo real</p>
-                  </div>
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-indigo-600 dark:border-indigo-400 border-t-transparent mx-auto"></div>
                 </div>
               </div>
             )}
@@ -355,7 +379,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
             onChange={(e) => setPastedText(e.target.value)}
             disabled={loading}
             className="w-full h-32 p-4 border border-slate-200 dark:border-slate-700 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 dark:focus:ring-indigo-400/10 focus:border-indigo-500 outline-none text-sm font-medium text-slate-700 dark:text-slate-300 bg-slate-50/50 dark:bg-slate-800/50 transition-all resize-none disabled:opacity-50"
-            placeholder="Cole aqui uma tabela ou texto descritivo..."
+            placeholder="Ex: Copie dados de uma planilha e cole aqui para análise..."
           />
         </div>
 
@@ -366,7 +390,7 @@ const ImportModal: React.FC<ImportModalProps> = ({ onClose, onImport, onToast, u
             disabled={loading || !pastedText.trim()}
             className="px-10 py-3 rounded-2xl bg-indigo-600 text-white font-black shadow-xl shadow-indigo-600/30 hover:bg-indigo-700 disabled:opacity-50 transition-all active:scale-95"
           >
-            {loading ? 'Analisando...' : 'Processar Texto'}
+            {loading ? 'Analisando...' : 'Analisar Texto'}
           </button>
         </div>
       </div>

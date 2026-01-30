@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { Invoice, Situacao, Filters, User, UserRole, HistoryEntry, ViewType, SystemSetting } from './types';
+import { Invoice, Situacao, Filters, User, UserRole, HistoryEntry, ViewType, SystemSetting, Supplier } from './types';
 import { formatCurrency, generateId } from './utils';
 import { dataService } from './services/dataService';
 import KpiCard from './components/KpiCard';
@@ -16,6 +16,9 @@ import UserModal from './components/UserModal';
 import LoginView from './components/LoginView';
 import InvoiceDetailsPanel from './components/InvoiceDetailsPanel';
 import NotificationDropdown from './components/NotificationDropdown';
+import ProfileDropdown from './components/ProfileDropdown';
+import SupplierManagementView from './components/SupplierManagementView';
+import SupplierModal from './components/SupplierModal';
 import Toast, { ToastMessage, ToastType } from './components/Toast';
 import ProfileView from './components/ProfileView';
 import ReminderSection from './components/ReminderSection';
@@ -32,6 +35,7 @@ const App: React.FC = () => {
 
   const [currentView, setCurrentView] = useState<ViewType>('dashboard');
   const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [settings, setSettings] = useState<SystemSetting[]>([]);
   const [isLoadingData, setIsLoadingData] = useState(true);
@@ -40,8 +44,11 @@ const App: React.FC = () => {
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
   const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [isSupplierModalOpen, setIsSupplierModalOpen] = useState(false);
+  
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null);
+  const [editingSupplier, setEditingSupplier] = useState<Supplier | null>(null);
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -111,14 +118,16 @@ const App: React.FC = () => {
     try {
       setIsLoadingData(true);
       await dataService.seedDatabase();
-      const [fetchedInvoices, fetchedUsers, fetchedSettings] = await Promise.all([
+      const [fetchedInvoices, fetchedUsers, fetchedSettings, fetchedSuppliers] = await Promise.all([
         dataService.getInvoices(),
         dataService.getUsers(),
-        dataService.getSystemSettings()
+        dataService.getSystemSettings(),
+        dataService.getSuppliers()
       ]);
       setInvoices(fetchedInvoices);
       setUsers(fetchedUsers);
       setSettings(fetchedSettings);
+      setSuppliers(fetchedSuppliers);
     } catch (error) {
       addToast('Erro ao sincronizar dados.', 'error');
     } finally { setIsLoadingData(false); }
@@ -132,7 +141,7 @@ const App: React.FC = () => {
       if (foundUser) {
         if (foundUser.status === 'Inativo') setAuthError('Conta desativada.');
         else {
-          const updatedUser = { ...foundUser, lastLogin: new Date().toLocaleString('pt-BR') };
+          const updatedUser = { ...foundUser, lastLogin: new Date().toISOString() };
           await dataService.saveUser(updatedUser);
           setCurrentUser(updatedUser); setIsAuthenticated(true);
           const refreshedUsers = await dataService.getUsers(); setUsers(refreshedUsers);
@@ -196,15 +205,95 @@ const App: React.FC = () => {
     } catch (err) { addToast('Erro ao salvar.', 'error'); }
   }, [invoices, currentUser, addToast]);
 
-  const handleImport = useCallback(async (newInvoices: Invoice[]) => {
-    const updatedWithHistory = newInvoices.map(inv => ({
-      ...inv, history: [{ id: generateId(), date: new Date().toISOString(), description: 'Importado via IA.', user: currentUser?.name || 'Sistema' }]
-    }));
+  const handleSaveSupplier = useCallback(async (supplierData: Supplier) => {
     try {
-      for (const inv of updatedWithHistory) await dataService.saveInvoice(inv);
-      setInvoices(prev => [...updatedWithHistory, ...prev]);
-      setAiInsight(''); addToast('Importação concluída.', 'success');
-    } catch (err) { addToast('Erro na importação.', 'error'); }
+      await dataService.saveSupplier(supplierData);
+      setSuppliers(prev => {
+        const exists = prev.some(s => s.id === supplierData.id);
+        if (exists) return prev.map(s => s.id === supplierData.id ? supplierData : s);
+        return [supplierData, ...prev];
+      });
+      setIsSupplierModalOpen(false); setEditingSupplier(null);
+      addToast('Fornecedor salvo com sucesso.', 'success');
+    } catch (err) { addToast('Erro ao salvar fornecedor.', 'error'); }
+  }, [addToast]);
+
+  const handleDeleteSupplier = useCallback(async (id: string) => {
+    if (confirm("Excluir este fornecedor permanentemente?")) {
+      try {
+        await dataService.deleteSupplier(id);
+        setSuppliers(prev => prev.filter(s => s.id !== id));
+        addToast('Fornecedor removido.', 'success');
+      } catch (err) { addToast('Erro ao deletar fornecedor.', 'error'); }
+    }
+  }, [addToast]);
+
+  /**
+   * Função que coordena a importação de notas e a sincronização de fornecedores.
+   */
+  const handleImport = useCallback(async (data: { invoices: Invoice[], supplierMetadata: (Partial<Supplier> & { forName: string })[] }) => {
+    const { invoices: newInvoices, supplierMetadata } = data;
+    
+    try {
+      // 1. Salvar as Notas Fiscais com histórico
+      const updatedInvoicesWithHistory = newInvoices.map(inv => ({
+        ...inv, 
+        history: [{ 
+          id: generateId(), 
+          date: new Date().toISOString(), 
+          description: 'Importado via Inteligência Artificial.', 
+          user: currentUser?.name || 'Sistema' 
+        }]
+      }));
+
+      for (const inv of updatedInvoicesWithHistory) {
+        await dataService.saveInvoice(inv);
+      }
+      setInvoices(prev => [...updatedInvoicesWithHistory, ...prev]);
+
+      // 2. Sincronizar Fornecedores (Inserir novos ou atualizar existentes via CNPJ)
+      let suppliersSyncCount = 0;
+      const currentSuppliers = await dataService.getSuppliers();
+      const finalSuppliers = [...currentSuppliers];
+
+      for (const meta of supplierMetadata) {
+        if (!meta.cnpj) continue;
+        
+        // Verifica se já existe no banco ou no lote atual
+        const existingIdx = finalSuppliers.findIndex(s => s.cnpj.replace(/\D/g, '') === meta.cnpj?.replace(/\D/g, ''));
+        
+        if (existingIdx === -1) {
+          // Novo fornecedor detectado
+          const newSupplier: Supplier = {
+            id: generateId(),
+            razaoSocial: meta.razaoSocial || meta.forName || 'Razão não informada',
+            nomeFantasia: meta.nomeFantasia || meta.forName || '',
+            cnpj: meta.cnpj,
+            email: meta.email || '',
+            telefone: meta.telefone || '',
+            endereco: meta.endereco || '',
+            cidade: meta.cidade || '',
+            estado: meta.estado || '',
+            status: 'Ativo',
+            dataCadastro: new Date().toISOString()
+          };
+          await dataService.saveSupplier(newSupplier);
+          finalSuppliers.unshift(newSupplier);
+          suppliersSyncCount++;
+        }
+      }
+
+      if (suppliersSyncCount > 0) {
+        setSuppliers(finalSuppliers);
+        addToast(`${suppliersSyncCount} novos fornecedores cadastrados.`, 'success');
+      }
+
+      setAiInsight('');
+      addToast(`Importação de ${newInvoices.length} notas finalizada com sucesso.`, 'success');
+    } catch (err) { 
+      addToast('Erro ao processar importação.', 'error'); 
+      console.error(err);
+    }
   }, [currentUser, addToast]);
 
   const handleDeleteInvoice = useCallback(async (id: string) => {
@@ -217,6 +306,25 @@ const App: React.FC = () => {
       } catch (err) { addToast('Erro ao deletar.', 'error'); }
     }
   }, [selectedInvoice, addToast]);
+
+  const handleDeleteAllInvoices = useCallback(async () => {
+    if (currentUser?.role !== UserRole.ADMIN) {
+      addToast('Apenas administradores podem limpar a base.', 'warning');
+      return;
+    }
+
+    if (confirm("🚨 ATENÇÃO: Deseja deletar TODAS as notas fiscais permanentemente? Esta ação não pode ser desfeita.")) {
+      try {
+        await dataService.deleteAllInvoices();
+        setInvoices([]);
+        setAiInsight('');
+        if (selectedInvoice) setSelectedInvoice(null);
+        addToast('Base de notas fiscais limpa com sucesso.', 'success');
+      } catch (err) {
+        addToast('Erro ao tentar limpar a base.', 'error');
+      }
+    }
+  }, [currentUser, addToast, selectedInvoice]);
 
   const handleSaveUser = useCallback(async (userData: User) => {
     try {
@@ -298,23 +406,39 @@ const App: React.FC = () => {
              </button>
              <div className="h-4 w-1 bg-indigo-600 rounded-full hidden sm:block shrink-0"></div>
              <h2 className="text-[11px] sm:text-xs lg:text-sm font-bold tracking-tight uppercase truncate max-w-[120px] sm:max-w-none">
-               {currentView === 'dashboard' ? 'Analytics' : currentView === 'invoices' ? 'Notas Fiscais' : currentView === 'users' ? 'Usuários' : currentView === 'settings' ? 'Configurações' : currentView === 'profile' ? 'Meu Cadastro' : 'Logs de Sistema'}
+               {currentView === 'dashboard' ? 'Analytics' : currentView === 'invoices' ? 'Notas Fiscais' : currentView === 'suppliers' ? 'Fornecedores' : currentView === 'users' ? 'Usuários' : currentView === 'settings' ? 'Configurações' : currentView === 'profile' ? 'Meu Cadastro' : 'Logs de Sistema'}
              </h2>
           </div>
           
           <div className="flex items-center gap-2 sm:gap-4 shrink-0">
-            <NotificationDropdown invoices={invoices} onSelectInvoice={setSelectedInvoice} theme={theme} />
+            <div className="flex items-center gap-1 sm:gap-2">
+              <NotificationDropdown invoices={invoices} onSelectInvoice={setSelectedInvoice} theme={theme} />
+              <ProfileDropdown currentUser={currentUser} onNavigate={setCurrentView} onLogout={handleLogout} theme={theme} />
+            </div>
             <div className="h-6 w-[1px] bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block"></div>
             
             <div className="flex gap-2">
-              {currentView === 'invoices' && canWrite && (
+              {currentView === 'invoices' && (
                 <>
-                  <button onClick={() => { setEditingInvoice(null); setIsManualModalOpen(true); }} className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-200 dark:border-slate-700">
-                    <span className="hidden xs:inline">Novo</span> Registro
-                  </button>
-                  <button onClick={() => setIsImportModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
-                    <span className="hidden xs:inline">Importar</span> IA
-                  </button>
+                  {currentUser?.role === UserRole.ADMIN && (
+                    <button 
+                      onClick={handleDeleteAllInvoices} 
+                      className="bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-900 text-rose-600 dark:text-rose-400 px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all flex items-center gap-1.5 hover:bg-rose-100 dark:hover:bg-rose-900/50 shadow-sm"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      Limpar Base
+                    </button>
+                  )}
+                  {canWrite && (
+                    <>
+                      <button onClick={() => { setEditingInvoice(null); setIsManualModalOpen(true); }} className="bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all flex items-center gap-1.5 border border-slate-200 dark:border-slate-700">
+                        <span className="hidden xs:inline">Novo</span> Registro
+                      </button>
+                      <button onClick={() => setIsImportModalOpen(true)} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1.5 rounded-xl text-[10px] sm:text-xs font-bold transition-all flex items-center gap-1.5 shadow-lg shadow-indigo-600/20">
+                        <span className="hidden xs:inline">Importar</span> IA
+                      </button>
+                    </>
+                  )}
                 </>
               )}
             </div>
@@ -331,13 +455,10 @@ const App: React.FC = () => {
                 <KpiCard title="Pendências" value={invoices.filter(i => i.situacao === Situacao.NAO_PAGO && !i.pgto).length.toString()} icon={<svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01" /></svg>} colorClass="bg-amber-50 dark:bg-amber-950/30" />
               </div>
               
-              {/* Radar de Vencimentos - Prioritário */}
               <ReminderSection invoices={invoices} />
               
-              {/* Dashboards e Gráficos */}
               <DashboardView invoices={invoices.filter(i => i.situacao !== Situacao.CANCELADO)} theme={theme} />
 
-              {/* Insights de IA - Posicionado na parte de baixo como conclusão */}
               <div className="bg-indigo-900 rounded-[1.2rem] lg:rounded-[2rem] p-6 lg:p-10 text-white relative overflow-hidden shadow-2xl transition-all hover:shadow-indigo-500/10">
                 <div className="absolute top-0 right-0 p-8 opacity-10">
                   <svg className="w-32 h-32" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 18a8 8 0 1 1 8-8 8 8 0 0 1-8 8z"/><path d="M12 6a1 1 0 0 0-1 1v5.59l-2.71 2.7a1 1 0 0 0 1.42 1.42l3-3A1 1 0 0 0 13 13V7a1 1 0 0 0-1-1z"/></svg>
@@ -399,6 +520,19 @@ const App: React.FC = () => {
               />
             </div>
           )}
+
+          {currentView === 'suppliers' && (
+            <div className="max-w-7xl mx-auto">
+              <SupplierManagementView 
+                suppliers={suppliers} 
+                onAddSupplier={() => { setEditingSupplier(null); setIsSupplierModalOpen(true); }}
+                onEditSupplier={(s) => { setEditingSupplier(s); setIsSupplierModalOpen(true); }}
+                onDeleteSupplier={handleDeleteSupplier}
+                currentUser={currentUser}
+                theme={theme}
+              />
+            </div>
+          )}
           
           {currentView === 'users' && <div className="max-w-7xl mx-auto"><UserManagementView users={users} onAddUser={() => { setEditingUser(null); setIsUserModalOpen(true); }} onEditUser={(u) => { setEditingUser(u); setIsUserModalOpen(true); }} onDeleteUser={handleDeleteUser} currentUser={currentUser} theme={theme} /></div>}
           {currentView === 'logs' && <div className="max-w-7xl mx-auto"><ErrorLogsView theme={theme} /></div>}
@@ -411,6 +545,7 @@ const App: React.FC = () => {
       {isImportModalOpen && <ImportModal onClose={() => setIsImportModalOpen(false)} onImport={handleImport} onToast={addToast} userEmail={currentUser?.email || 'Sistema'} theme={theme} />}
       {isManualModalOpen && <ManualEntryModal invoice={editingInvoice} onClose={() => { setIsManualModalOpen(false); setEditingInvoice(null); }} onSave={handleSaveManual} onToast={addToast} theme={theme} />}
       {isUserModalOpen && <UserModal user={editingUser} onClose={() => { setIsUserModalOpen(false); setEditingUser(null); }} onSave={handleSaveUser} onToast={addToast} theme={theme} />}
+      {isSupplierModalOpen && <SupplierModal supplier={editingSupplier} onClose={() => { setIsSupplierModalOpen(false); setEditingSupplier(null); }} onSave={handleSaveSupplier} theme={theme} />}
       <InvoiceDetailsPanel invoice={selectedInvoice} onClose={() => setSelectedInvoice(null)} theme={theme} />
     </div>
   );

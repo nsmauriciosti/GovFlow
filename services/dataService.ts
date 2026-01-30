@@ -1,11 +1,12 @@
 
 import { getSupabaseClient } from './supabase';
-import { Invoice, User, UserRole, Situacao, ImportErrorLog, SystemSetting } from '../types';
+import { Invoice, User, UserRole, Situacao, ImportErrorLog, SystemSetting, Supplier } from '../types';
 import { generateId } from '../utils';
 
 const LOCAL_STORAGE_KEYS = {
   INVOICES: 'govflow_local_invoices',
   USERS: 'govflow_local_users',
+  SUPPLIERS: 'govflow_local_suppliers',
   ERROR_LOGS: 'govflow_local_error_logs',
   SETTINGS: 'govflow_local_settings',
 };
@@ -29,18 +30,6 @@ const DEFAULT_SETTINGS: SystemSetting[] = [
   { key: 'supabase_key', value: 'sb_publishable_PUkC5A7ZPTKRhqRQsPEddA_1UQ26Jt8' }
 ];
 
-const formatLastLoginForDb = (lastLogin: string) => {
-  if (!lastLogin || lastLogin.includes('Aguardando') || lastLogin.includes('Nunca')) {
-    return null;
-  }
-  try {
-    const isoDate = new Date(lastLogin).toISOString();
-    return isoDate;
-  } catch (e) {
-    return null;
-  }
-};
-
 const localDb = {
   getInvoices: (): Invoice[] => {
     const data = localStorage.getItem(LOCAL_STORAGE_KEYS.INVOICES);
@@ -48,6 +37,13 @@ const localDb = {
   },
   saveInvoices: (invoices: Invoice[]) => {
     localStorage.setItem(LOCAL_STORAGE_KEYS.INVOICES, JSON.stringify(invoices));
+  },
+  getSuppliers: (): Supplier[] => {
+    const data = localStorage.getItem(LOCAL_STORAGE_KEYS.SUPPLIERS);
+    return data ? JSON.parse(data) : [];
+  },
+  saveSuppliers: (suppliers: Supplier[]) => {
+    localStorage.setItem(LOCAL_STORAGE_KEYS.SUPPLIERS, JSON.stringify(suppliers));
   },
   getUsers: (): User[] => {
     const data = localStorage.getItem(LOCAL_STORAGE_KEYS.USERS);
@@ -146,6 +142,53 @@ export const dataService = {
     }
   },
 
+  async deleteAllInvoices(): Promise<void> {
+    localDb.saveInvoices([]);
+    const sb = getSupabaseClient();
+    if (sb) {
+      try {
+        // Supabase requer um filtro para o delete; usamos neq('id', 'null') como filtro global
+        const { error } = await sb.from('invoices').delete().neq('id', 'null');
+        if (error) throw error;
+      } catch (err) {
+        console.error("Erro ao deletar em massa no Supabase:", err);
+      }
+    }
+  },
+
+  // Supplier Methods
+  async getSuppliers(): Promise<Supplier[]> {
+    const sb = getSupabaseClient();
+    if (sb) {
+      try {
+        const { data, error } = await sb.from('suppliers').select('*').order('razaoSocial', { ascending: true });
+        if (error) throw error;
+        return (data || []) as Supplier[];
+      } catch (err) { return localDb.getSuppliers(); }
+    }
+    return localDb.getSuppliers();
+  },
+
+  async saveSupplier(supplier: Supplier): Promise<void> {
+    const currentLocal = localDb.getSuppliers();
+    const idx = currentLocal.findIndex(s => s.id === supplier.id);
+    if (idx >= 0) currentLocal[idx] = supplier; else currentLocal.unshift(supplier);
+    localDb.saveSuppliers(currentLocal);
+    
+    const sb = getSupabaseClient();
+    if (sb) {
+      try { await sb.from('suppliers').upsert(supplier); } catch (err) {}
+    }
+  },
+
+  async deleteSupplier(id: string): Promise<void> {
+    localDb.saveSuppliers(localDb.getSuppliers().filter(s => s.id !== id));
+    const sb = getSupabaseClient();
+    if (sb) {
+      try { await sb.from('suppliers').delete().eq('id', id); } catch (err) {}
+    }
+  },
+
   async getUsers(): Promise<User[]> {
     const localUsers = localDb.getUsers();
     const sb = getSupabaseClient();
@@ -159,8 +202,8 @@ export const dataService = {
           email: u.email,
           password: u.password,
           role: u.role as UserRole,
-          status: u.status as 'Ativo' | 'Inactive',
-          lastLogin: u.last_login ? new Date(u.last_login).toLocaleString('pt-BR') : 'Nunca acessou',
+          status: u.status as 'Ativo' | 'Inativo',
+          lastLogin: u.last_login ? u.last_login : 'Nunca acessou',
           avatar: u.avatar,
           phone: u.phone,
           bio: u.bio
@@ -179,6 +222,15 @@ export const dataService = {
     const sb = getSupabaseClient();
     if (sb) {
       try {
+        // Validação de data segura para evitar RangeError: Invalid time value
+        let lastLoginIso: string | null = null;
+        if (user.lastLogin && !user.lastLogin.includes('Nunca') && !user.lastLogin.includes('Aguardando')) {
+          const dateObj = new Date(user.lastLogin);
+          if (!isNaN(dateObj.getTime())) {
+            lastLoginIso = dateObj.toISOString();
+          }
+        }
+
         const dbUser = { 
           id: user.id, 
           name: user.name, 
@@ -186,7 +238,7 @@ export const dataService = {
           password: user.password, 
           role: user.role, 
           status: user.status, 
-          last_login: formatLastLoginForDb(user.lastLogin),
+          last_login: lastLoginIso,
           avatar: user.avatar,
           phone: user.phone,
           bio: user.bio

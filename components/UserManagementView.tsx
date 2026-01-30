@@ -1,6 +1,7 @@
 
 import React, { useState, useMemo, useEffect } from 'react';
 import { User, UserRole } from '../types';
+import { formatDateTimeBR } from '../utils';
 
 interface UserManagementViewProps {
   users: User[];
@@ -8,7 +9,6 @@ interface UserManagementViewProps {
   onEditUser: (user: User) => void;
   onDeleteUser: (id: string) => void;
   currentUser: User | null;
-  // Added theme prop to fix TypeScript error in App.tsx
   theme: 'light' | 'dark';
 }
 
@@ -25,25 +25,25 @@ const UserRow = React.memo(({
   isAdmin: boolean;
   isSelf: boolean;
 }) => (
-  <tr className="hover:bg-slate-50/50 transition-colors group">
+  <tr className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors group">
     <td className="px-6 py-4">
       <div className="flex items-center gap-3">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${
-          user.role === UserRole.ADMIN ? 'bg-indigo-100 text-indigo-600' : 'bg-slate-100 text-slate-600'
+        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm shrink-0 ${
+          user.role === UserRole.ADMIN ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/40 dark:text-indigo-400' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
         }`}>
           {user.name.charAt(0).toUpperCase()}
         </div>
-        <div>
-          <p className="text-sm font-bold text-slate-900">{user.name}</p>
-          <p className="text-xs text-slate-500">{user.email}</p>
+        <div className="min-w-0">
+          <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{user.name}</p>
+          <p className="text-xs text-slate-500 dark:text-slate-500 truncate">{user.email}</p>
         </div>
       </div>
     </td>
     <td className="px-6 py-4">
       <span className={`text-xs font-semibold px-2.5 py-1 rounded-lg border ${
-        user.role === UserRole.ADMIN ? 'bg-indigo-50 border-indigo-100 text-indigo-700' :
-        user.role === UserRole.GESTOR ? 'bg-emerald-50 border-emerald-100 text-emerald-700' :
-        'bg-slate-50 border-slate-100 text-slate-600'
+        user.role === UserRole.ADMIN ? 'bg-indigo-50 border-indigo-100 text-indigo-700 dark:bg-indigo-950/40 dark:border-indigo-900/50 dark:text-indigo-400' :
+        user.role === UserRole.GESTOR ? 'bg-emerald-50 border-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:border-emerald-900/50 dark:text-emerald-400' :
+        'bg-slate-50 border-slate-100 text-slate-600 dark:bg-slate-800 dark:border-slate-700 dark:text-slate-400'
       }`}>
         {user.role}
       </span>
@@ -51,18 +51,18 @@ const UserRow = React.memo(({
     <td className="px-6 py-4">
       <div className="flex items-center gap-1.5">
         <div className={`w-1.5 h-1.5 rounded-full ${user.status === 'Ativo' ? 'bg-emerald-500' : 'bg-rose-500'}`}></div>
-        <span className="text-xs font-medium text-slate-600">{user.status}</span>
+        <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{user.status}</span>
       </div>
     </td>
     <td className="px-6 py-4">
-      <span className="text-xs text-slate-500">{user.lastLogin}</span>
+      <span className="text-xs text-slate-500 dark:text-slate-500">{formatDateTimeBR(user.lastLogin)}</span>
     </td>
     <td className="px-6 py-4">
       <div className="flex justify-center gap-2">
         <button 
           onClick={() => onEditUser(user)}
           disabled={!isAdmin}
-          className={`p-2 rounded-lg transition-all ${isAdmin ? 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50' : 'text-slate-200 cursor-not-allowed'}`}
+          className={`p-2 rounded-lg transition-all ${isAdmin ? 'text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40' : 'text-slate-200 dark:text-slate-700 cursor-not-allowed'}`}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
         </button>
@@ -70,7 +70,7 @@ const UserRow = React.memo(({
           onClick={() => onDeleteUser(user.id)}
           disabled={!isAdmin || isSelf}
           title={isSelf ? "Você não pode excluir sua própria conta" : "Excluir Usuário"}
-          className={`p-2 rounded-lg transition-all ${isAdmin && !isSelf ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50' : 'text-slate-200 cursor-not-allowed'}`}
+          className={`p-2 rounded-lg transition-all ${isAdmin && !isSelf ? 'text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40' : 'text-slate-200 dark:text-slate-700 cursor-not-allowed'}`}
         >
           <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
         </button>

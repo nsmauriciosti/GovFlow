@@ -26,6 +26,20 @@ export interface User {
   bio?: string;
 }
 
+export interface Supplier {
+  id: string;
+  razaoSocial: string;
+  nomeFantasia: string;
+  cnpj: string;
+  email: string;
+  telefone: string;
+  endereco: string;
+  cidade: string;
+  estado: string;
+  status: 'Ativo' | 'Inativo';
+  dataCadastro: string;
+}
+
 export interface HistoryEntry {
   id: string;
   date: string;
@@ -75,4 +89,4 @@ export interface SystemSetting {
   value: string;
 }
 
-export type ViewType = 'dashboard' | 'invoices' | 'users' | 'logs' | 'settings' | 'profile';
+export type ViewType = 'dashboard' | 'invoices' | 'users' | 'logs' | 'settings' | 'profile' | 'suppliers';

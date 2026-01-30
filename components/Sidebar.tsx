@@ -48,6 +48,10 @@ const Sidebar: React.FC<SidebarProps> = ({
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>
     },
     { 
+      id: 'suppliers', label: 'Fornecedores', show: true,
+      icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5" /></svg>
+    },
+    { 
       id: 'profile', label: 'Meu Cadastro', show: true,
       icon: <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
     },
@@ -135,10 +139,10 @@ const Sidebar: React.FC<SidebarProps> = ({
         <div className="p-4 border-t border-slate-100 dark:border-slate-800/50 relative transition-colors" ref={profileRef}>
           {isProfileOpen && (
             <div className="absolute bottom-full left-4 right-4 mb-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-2 duration-200 z-50">
-              <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50">
+              <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/50 transition-colors">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Sessão Ativa</p>
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-500 overflow-hidden shadow-inner flex items-center justify-center">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500 overflow-hidden shadow-inner flex items-center justify-center transition-colors">
                     {currentUser.avatar ? (
                       <img src={currentUser.avatar} alt="Me" className="w-full h-full object-cover" />
                     ) : (
@@ -146,8 +150,8 @@ const Sidebar: React.FC<SidebarProps> = ({
                     )}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{currentUser.name}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{currentUser.email}</p>
+                    <p className="text-sm font-bold text-slate-900 dark:text-white truncate transition-colors">{currentUser.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate transition-colors">{currentUser.email}</p>
                   </div>
                 </div>
               </div>
@@ -168,7 +172,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             className={`w-full bg-slate-50 dark:bg-slate-900/50 rounded-2xl p-4 flex items-center justify-between gap-3 cursor-pointer hover:bg-slate-100 dark:hover:bg-slate-900 border border-slate-200 dark:border-transparent transition-all group ${isProfileOpen ? 'bg-slate-100 dark:bg-slate-900 border-indigo-200 dark:border-slate-800' : ''}`}
           >
             <div className="flex items-center gap-3 min-w-0">
-              <div className="w-8 h-8 rounded-lg bg-indigo-500 overflow-hidden flex items-center justify-center shrink-0">
+              <div className="w-8 h-8 rounded-lg bg-indigo-500 overflow-hidden flex items-center justify-center shrink-0 transition-colors">
                 {currentUser.avatar ? (
                   <img src={currentUser.avatar} alt="Me" className="w-full h-full object-cover" />
                 ) : (
@@ -177,7 +181,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               </div>
               <div className="min-w-0 text-left">
                 <p className="text-xs font-bold text-slate-900 dark:text-white truncate transition-colors">{currentUser.name}</p>
-                <p className="text-[10px] text-slate-500 dark:text-slate-500 truncate capitalize">{currentUser.role}</p>
+                <p className="text-[10px] text-slate-500 dark:text-slate-500 truncate capitalize transition-colors">{currentUser.role}</p>
               </div>
             </div>
             <svg className={`w-4 h-4 text-slate-400 transition-transform duration-300 ${isProfileOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 15l7-7 7 7" /></svg>

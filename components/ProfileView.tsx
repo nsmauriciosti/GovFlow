@@ -1,6 +1,7 @@
 
 import React, { useState, useRef } from 'react';
 import { User } from '../types';
+import { formatDateTimeBR } from '../utils';
 
 interface ProfileViewProps {
   user: User;
@@ -130,7 +131,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onSave, onToast, theme 
             <div className="flex items-center justify-between">
               <div>
                 <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">Segurança da Conta</h4>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Último acesso em: {formData.lastLogin}</p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Último acesso em: {formatDateTimeBR(formData.lastLogin)}</p>
               </div>
               <button 
                 type="button"
@@ -150,7 +151,7 @@ const ProfileView: React.FC<ProfileViewProps> = ({ user, onSave, onToast, theme 
             >
               {isSaving ? (
                 <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
                   Salvando...
                 </>
               ) : "Atualizar Cadastro"}
